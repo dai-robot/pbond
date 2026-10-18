@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Institutional palette */
+  --color-ink: #16202c;
+  --color-ink-2: #3b4757;
+  --color-ink-3: #6b7685;
+  --color-line: #d9dee5;
+  --color-line-2: #e9edf2;
+  --color-panel: #ffffff;
+  --color-canvas: #f3f5f8;
+  --color-accent: #1f3f6e;
+  --color-accent-soft: #e6edf7;
+  --color-warn: #b45309;
+  --color-warn-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-ok: #166534;
+  --color-ok-soft: #dcfce7;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.45;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+
+/* dense data tables */
+.tbl {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.tbl th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  color: var(--color-ink-3);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-line-2);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tbl tbody tr:hover td {
+  background: #f6f8fb;
+}
+.tbl tr.is-selected td {
+  background: var(--color-accent-soft);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+}
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* thin scrollbars for dense panes */
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #c8cfd8;
+  border-radius: 4px;
 }
