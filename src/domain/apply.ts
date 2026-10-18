@@ -1,7 +1,7 @@
 import type { AllocationRow } from "../lib/allocation.ts";
 import { approveCoLead, approveIssuer, confirmInvestors, reopenDraft, saveDraft, showToCoLeads, showToIssuer } from "../lib/allocation.ts";
 import { firmOwnsEntry, salesPersonById } from "../lib/coverage.ts";
-import { isAdminLead, isMember } from "../lib/deal.ts";
+import { identityModeOf, isAccountXInvestor, isAdminLead, isMember, nextIdentityMode, placedWithFirms } from "../lib/deal.ts";
 import { setDemoNow } from "../lib/fmt.ts";
 import { chatRoomsForRole, investorCanSeeDeal, salesCanSeeDeal } from "../lib/roles.ts";
 import { defaultChatRooms, deskPersonById } from "../lib/desk.ts";
@@ -21,12 +21,11 @@ import {
   sourceFirmOf,
 } from "../lib/investorMasterModel.ts";
 import { INVESTOR_SEGMENTS, type InvestorPersona, type InvestorSegment } from "../data/demoRoles.ts";
-import { isAccountXInvestor } from "../lib/deal.ts";
 import type { FirmId, RoomType } from "../lib/types.ts";
 import type { Actor } from "./actor.ts";
 import { applyAddTranche, applyCloseTranche, applyReopenTranche, applyTerms, buildDeal, ensureChatRooms, settleCatalog } from "./catalog.ts";
 import type { CreateDealInput, UpdateTermsInput } from "./catalog.ts";
-import { actorMayEnterFirm, addAccountX, cancelOrder, createFirmOrder, createInvestorOrder, mergeOrders, updateInvestorOrder, type FirmOrderInput, type InvestorOrderInput, type OrderPatch } from "./orders.ts";
+import { actorMayEnterFirm, addAccountX, cancelOrder, createFirmOrder, createInvestorOrder, firmBdError, investorPlacementError, mergeOrders, orderShapeError, updateInvestorOrder, type FirmOrderInput, type InvestorOrderInput, type OrderPatch } from "./orders.ts";
 import { settleWorld } from "./project.ts";
 import type { World } from "./world.ts";
 
@@ -156,7 +155,13 @@ export function applyCommand(world: World, actor: Actor, command: Command): Appl
       const order = base.orders.orders.find((o) => o.id === command.orderId);
       const found = order ? pair(base, order.trancheId) : undefined;
       if (!order || !found || !investorCanSeeDeal(found.deal) || canonicalMasterId(order.globalInvestorId, base.investors.snap.masters) !== canonicalMasterId(actor.investorId, base.investors.snap.masters)) return fail("自分のオーダーだけ更新できます");
-      const next = updateInvestorOrder(base.orders, base.investors, command.orderId, command.patch, found?.deal, found?.tranche);
+      const nextType = command.patch.type ?? order.type;
+      const shape = orderShapeError({ amountBn: command.patch.amountBn ?? order.amountBn, type: nextType, limitBp: nextType === "LIMIT" ? command.patch.limitBp ?? order.limitBp : undefined });
+      if (shape) return fail(shape);
+      const identity = nextIdentityMode(identityModeOf(order), command.patch.identityMode ?? identityModeOf(order));
+      const placement = investorPlacementError(found.deal, identity, command.patch.placedWith ?? placedWithFirms(order), command.patch.bdFirmId ?? order.bdFirmId);
+      if (placement) return fail(placement);
+      const next = updateInvestorOrder(base.orders, base.investors, command.orderId, command.patch, found.deal, found.tranche);
       if (!next) return fail("そのオーダーは更新できません");
       return done({ ...base, orders: next });
     }
@@ -181,6 +186,10 @@ export function applyCommand(world: World, actor: Actor, command: Command): Appl
       if (actor.role !== "INVESTOR") return fail("投資家だけが直接オーダーできます");
       const found = pair(base, command.trancheId);
       if (!found || !investorCanSeeDeal(found.deal)) return fail("まだ公開前です");
+      const shape = orderShapeError({ amountBn: command.input.amountBn, type: command.input.type, limitBp: command.input.type === "LIMIT" ? command.input.limitBp : undefined });
+      if (shape) return fail(shape);
+      const placement = investorPlacementError(found.deal, "DISCLOSED", command.input.placedWith, command.input.bdFirmId);
+      if (placement) return fail(placement);
       const next = createInvestorOrder(base.orders, base.investors, found.tranche, found.deal, actor.investorId, command.input);
       if (!next) return fail("オーダーを登録できません");
       return done({ ...base, orders: next });
@@ -190,6 +199,10 @@ export function applyCommand(world: World, actor: Actor, command: Command): Appl
       const found = pair(base, command.trancheId);
       if (!found || !isMember(found.deal, actor.firmId)) return fail("この案件の主幹事ではありません");
       if (actor.role === "SALES" && !salesCanSeeDeal(found.deal)) return fail("まだ公開前です");
+      const shape = orderShapeError({ amountBn: command.input.amountBn, type: command.input.type, limitBp: command.input.type === "LIMIT" ? command.input.limitBp : undefined });
+      if (shape) return fail(shape);
+      const placement = firmBdError(found.deal, command.input.bdFirmId, isAccountXInvestor(command.input.investorId ?? ""), actor.firmId);
+      if (placement) return fail(placement);
       const input = { ...command.input, salesPersonId: actor.role === "SALES" ? actor.personId : command.input.salesPersonId };
       const next = createFirmOrder(base.orders, base.investors, found.tranche, found.deal, actor.firmId, input);
       if (!next) return fail("オーダーを登録できません");

@@ -2,7 +2,7 @@ import { investorById, investorMasterById, type InvestorPersona } from "../data/
 import type { Actor } from "./actor.ts";
 import type { AccountXInvestor, FirmAlias, InvestorBook, OrderBook } from "./world.ts";
 import { closedBookEditAllowed, firmEntryLock, firmHoldsOrder, forcedByFirm, investorEntryLock, otherFirmOrderOnly, ownInvestorSlice } from "../lib/coverage.ts";
-import { accountXInvestorName, currentGuidance, firmShort, identityModeOf, isAccountXInvestor, mergeCanonicalOrders, nextIdentityMode, placedWithFirms, placedWithForIdentity, resolvedCanonical, withFirmSubmission } from "../lib/deal.ts";
+import { accountXInvestorName, currentGuidance, firmShort, identityModeOf, isAccountXInvestor, leadFirmIds, mergeCanonicalOrders, nextIdentityMode, placedWithFirms, placedWithForIdentity, resolvedCanonical, withFirmSubmission } from "../lib/deal.ts";
 import { DEMO_NOW, fmtBn } from "../lib/fmt.ts";
 import { canonicalMasterId, sourceForFirm } from "../lib/investorMasterModel.ts";
 import { ENTRY_TAG_JA } from "../lib/labels.ts";
@@ -37,6 +37,41 @@ export interface FirmOrderInput {
 }
 
 export type InvestorOrderInput = Required<Pick<OrderPatch, "amountBn" | "type" | "bdFirmId" | "placedWith">> & Pick<OrderPatch, "limitBp" | "comment" | "identityMode">;
+
+/** 金額は有限の正数で、0.1億円単位。種別と、リミットの指値もここで見る。 */
+export function orderShapeError(input: { amountBn: unknown; type: unknown; limitBp?: unknown }): string | undefined {
+  const amount = input.amountBn;
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0 || Math.abs(amount * 10 - Math.round(amount * 10)) >= 1e-9) return "金額は0.1億円単位の正の数にしてください";
+  if (input.type !== "MARKET" && input.type !== "LIMIT") return "オーダー種別が違います";
+  if (input.type === "LIMIT") {
+    const limit = input.limitBp;
+    if (typeof limit !== "number" || !Number.isFinite(limit) || !Number.isInteger(limit) || limit < 0) return "リミットの指値は0以上の整数にしてください";
+  }
+  return undefined;
+}
+
+/** 提出先は主幹事。B&Dはその中から選ぶ。アカウントXは提出先もB&Dも1社。 */
+export function investorPlacementError(deal: Deal, identity: unknown, placed: unknown, bd: unknown): string | undefined {
+  const leads = leadFirmIds(deal);
+  if (identity !== "DISCLOSED" && identity !== "ACCOUNT_X") return "記名の指定が違います";
+  if (!Array.isArray(placed) || placed.length === 0) return "提出先を選んでください";
+  if (placed.some((firm) => typeof firm !== "string" || !leads.includes(firm as FirmId))) return "提出先は主幹事から選んでください";
+  if (typeof bd !== "string" || !leads.includes(bd as FirmId)) return "B&Dは主幹事から選んでください";
+  if (identity === "ACCOUNT_X") {
+    if (placed.length !== 1 || placed[0] !== bd) return "アカウントXの提出先はB&Dの1社です";
+    return undefined;
+  }
+  if (!placed.includes(bd)) return "B&Dは提出先に含めてください";
+  return undefined;
+}
+
+/** 証券会社入力のB&Dは主幹事。アカウントXは入力した証券会社のまま。 */
+export function firmBdError(deal: Deal, bd: unknown, accountX: boolean, enteredByFirm: FirmId): string | undefined {
+  const leads = leadFirmIds(deal);
+  if (typeof bd !== "string" || !leads.includes(bd as FirmId)) return "B&Dは主幹事から選んでください";
+  if (accountX && bd !== enteredByFirm) return "アカウントXのB&Dは入力した証券会社です";
+  return undefined;
+}
 
 function orderTerms(amountBn: number, type: OrderType, limitBp?: number) {
   return `${fmtBn(amountBn)} ${type === "MARKET" ? "マーケット" : `リミット +${limitBp}bp`}`;
@@ -91,6 +126,8 @@ export function updateInvestorOrder(book: OrderBook, _investors: InvestorBook, o
   const g = tranche ? currentGuidance(tranche) : undefined;
   const nextType = patch.type ?? base.type;
   const nextLimit = nextType === "MARKET" ? undefined : patch.limitBp ?? base.limitBp;
+  if (orderShapeError({ amountBn: patch.amountBn ?? base.amountBn, type: nextType, limitBp: nextLimit })) return undefined;
+  if (deal && investorPlacementError(deal, nextIdentityMode(identityModeOf(base), patch.identityMode ?? identityModeOf(base)), patch.placedWith ?? placedWithFirms(base), patch.bdFirmId ?? base.bdFirmId)) return undefined;
   if (g && isOutsideGuidance({ type: nextType, limitBp: nextLimit }, g)) return undefined;
   const changes: string[] = [];
   if (patch.amountBn !== undefined && patch.amountBn !== base.amountBn) changes.push(`金額 ${base.amountBn}億円 → ${patch.amountBn}億円`);
@@ -151,6 +188,8 @@ export function cancelOrder(book: OrderBook, orderId: string, note: string, deal
 }
 
 export function createInvestorOrder(book: OrderBook, investors: InvestorBook, tranche: Tranche, deal: Deal | undefined, investorId: string, input: InvestorOrderInput): OrderBook | undefined {
+  if (orderShapeError({ amountBn: input.amountBn, type: input.type, limitBp: input.type === "LIMIT" ? input.limitBp : undefined })) return undefined;
+  if (deal && investorPlacementError(deal, "DISCLOSED", input.placedWith, input.bdFirmId)) return undefined;
   const canonicalId = isAccountXInvestor(investorId) ? investorId : resolve(investors, investorId);
   const persona = personas(investors).find((p) => p.id === canonicalId) ?? investorById(canonicalId) ?? investorMasterById(canonicalId);
   if (!persona || (deal && !newOrderRule(deal, tranche).allowed)) return undefined;
@@ -188,6 +227,7 @@ export function createInvestorOrder(book: OrderBook, investors: InvestorBook, tr
 }
 
 export function createFirmOrder(book: OrderBook, investors: InvestorBook, tranche: Tranche, deal: Deal, enteredByFirm: FirmId, input: FirmOrderInput): { book: OrderBook; aliases: FirmAlias[] } | undefined {
+  if (orderShapeError({ amountBn: input.amountBn, type: input.type, limitBp: input.type === "LIMIT" ? input.limitBp : undefined })) return undefined;
   const g = currentGuidance(tranche);
   if (deal.status !== "BOOK OPEN" && deal.status !== "BOOK CLOSED") return undefined;
   const channelLabel = input.channel === "SALES_MANUAL" ? "セールス入力" : "シンジケート入力";
@@ -196,6 +236,7 @@ export function createFirmOrder(book: OrderBook, investors: InvestorBook, tranch
   const canonicalId = pickedId && !isAccountXInvestor(pickedId) ? resolve(investors, pickedId) : pickedId;
   const live = canonicalId ? book.orders.find((o) => o.trancheId === tranche.id && o.globalInvestorId === canonicalId && o.status !== "CANCELLED") : undefined;
   const requestedId = canonicalId ?? live?.globalInvestorId ?? "";
+  if (firmBdError(deal, input.bdFirmId, isAccountXInvestor(requestedId), enteredByFirm)) return undefined;
   if (isAccountXInvestor(requestedId) && input.channel !== "SYNDICATE_MANUAL") return undefined;
   const closed = isTrancheFinalClosed(deal, tranche);
   const receptionEdit = input.reception === true && !!live && !!ownInvestorSlice(live, enteredByFirm);

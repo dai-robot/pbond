@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Actor } from "@/domain/actor";
 import { applyCommand, type ApplyResult, type Command } from "@/domain/apply";
+import { decideRefresh } from "@/domain/refresh";
 import { emptyWorld, type World } from "@/domain/world";
 import { setDemoNow } from "@/lib/fmt";
 
@@ -40,10 +41,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const actorRef = useRef(actor);
   const queue = useRef<Command[]>([]);
   const pumping = useRef(false);
+  const epoch = useRef(0);
+  const revisionRef = useRef(0);
   worldRef.current = world;
   actorRef.current = actor;
 
   const adopt = useCallback((body: SessionBody) => {
+    revisionRef.current = body.revision;
     setDemoNow(body.world.now);
     setActor(body.actor);
     setWorld(body.world);
@@ -53,21 +57,42 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/session");
-    if (!res.ok) {
-      setActor(null);
-      setReady(true);
-      return;
+    const ticket = epoch.current;
+    try {
+      const res = await fetch("/api/session");
+      if (res.status !== 200) {
+        const decision = decideRefresh({ ticket, epoch: epoch.current, pending: queue.current.length > 0 || pumping.current, seenRevision: revisionRef.current, status: res.status });
+        if (decision === "logout") setActor(null);
+        if (ticket === epoch.current) setReady(true);
+        return;
+      }
+      const body = (await res.json()) as SessionBody;
+      const decision = decideRefresh({
+        ticket,
+        epoch: epoch.current,
+        pending: queue.current.length > 0 || pumping.current,
+        seenRevision: revisionRef.current,
+        status: 200,
+        revision: body.revision,
+      });
+      if (decision === "adopt") adopt(body);
+      if (ticket === epoch.current) setReady(true);
+    } catch {
+      if (ticket === epoch.current) setReady(true);
     }
-    adopt((await res.json()) as SessionBody);
-    setReady(true);
   }, [adopt]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void refresh();
     }, 0);
-    return () => window.clearTimeout(timer);
+    const poll = window.setInterval(() => {
+      void refresh();
+    }, 4000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(poll);
+    };
   }, [refresh]);
 
   const pump = useCallback(async () => {
@@ -81,10 +106,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         queue.current.shift();
         if (!res.ok || !body?.world) {
           queue.current = [];
+          pumping.current = false;
           await refresh();
           break;
         }
         if (queue.current.length === 0) {
+          if (typeof body?.revision === "number") revisionRef.current = body.revision;
           setDemoNow(body.world.now);
           worldRef.current = body.world;
           setWorld(body.world);
@@ -115,6 +142,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const res = await fetch("/api/act", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ command }) });
     const body = await readError(res);
     if (!res.ok || !body?.world) return { ok: false, error: body?.error ?? "保存できませんでした" };
+    if (typeof body.revision === "number") revisionRef.current = body.revision;
     setDemoNow(body.world.now);
     worldRef.current = body.world;
     setWorld(body.world);
@@ -122,14 +150,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchActor = useCallback(async (actorId: string) => {
+    epoch.current += 1;
+    const ticket = epoch.current;
     queue.current = [];
     const res = await fetch("/api/session", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actorId }) });
-    if (!res.ok) return;
+    if (ticket !== epoch.current || !res.ok) return;
     adopt((await res.json()) as SessionBody);
   }, [adopt]);
 
   const logout = useCallback(async () => {
+    epoch.current += 1;
+    const ticket = epoch.current;
+    queue.current = [];
     await fetch("/api/login", { method: "DELETE" });
+    if (ticket !== epoch.current) return;
     setActor(null);
   }, []);
 
