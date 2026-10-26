@@ -17,6 +17,17 @@ export function MarketingUpdateNotice({ tranche }: { tranche: Tranche }) {
   );
 }
 
+/** プライシング確定。クーポン、単価、債券単利を各ロールの概要に出す。 */
+export function PricingConfirmedNotice({ tranche }: { tranche: Tranche }) {
+  const confirmed = tranche.pricingConfirmed;
+  if (!confirmed) return null;
+  return (
+    <p className="rounded-sm border border-yellow-300 bg-yellow-100 px-3 py-2 text-[13px] font-semibold text-yellow-950" data-testid="pricing-confirmed-notice">
+      プライシングが確定しました（{fmtTime(confirmed.at, { always: true })}）。クーポン {confirmed.couponPct.toFixed(3)}%、単価 {confirmed.priceYen}円、債券単利 {confirmed.bondSimplePct.toFixed(3)}%。
+    </p>
+  );
+}
+
 /** その年限のファイナルクローズ。各ロールの概要に赤文字で出す。 */
 export function BookClosedNotice({ deal, tranche }: { deal: Deal; tranche: Tranche }) {
   if (!isTrancheFinalClosed(deal, tranche)) return null;

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FIRMS } from "@/data/demoData";
-import { currentGuidance, isMember } from "@/lib/deal";
+import { allTranchesBookClosed, currentGuidance, isMember } from "@/lib/deal";
 import { dealPath } from "@/lib/roles";
 import { DealStatusBadge } from "../StatusBadge";
 import { useDealCatalog } from "../DealStateContext";
@@ -17,7 +17,7 @@ import { TenorSwitcher } from "../workspace/TenorSwitcher";
 export function AuditorHome() {
   const router = useRouter();
   const { firmId } = useViewer();
-  const { deals } = useDealCatalog();
+  const { deals, tranchesOf } = useDealCatalog();
   const visible = deals.filter((d) => isMember(d, firmId) && d.status !== "CLOSED");
 
   return (
@@ -48,7 +48,7 @@ export function AuditorHome() {
               <tr key={d.id} className="cursor-pointer hover:bg-slate-50" onClick={() => router.push(dealPath("AUDITOR", d.id))} data-testid={`auditor-deal-${d.id}`}>
                 <td className="font-semibold">{d.issuer}</td>
                 <td>
-                  <DealStatusBadge status={d.status} />
+                  <DealStatusBadge status={d.status} bookClosed={allTranchesBookClosed(d, tranchesOf(d.id))} />
                 </td>
               </tr>
             ))}

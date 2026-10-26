@@ -107,11 +107,11 @@ const SEED_AT = "2026-09-01 09:00";
  * コードのないマスターは、各社がマスターのまま使う。
  */
 const SEED_SOURCES: { masterId: string; firm: FirmId; code: string; name: string }[] = [
-  { masterId: "GI-0001", firm: "alpha", code: "1", name: "投資家アルファ" },
+  { masterId: "GI-0001", firm: "alpha", code: "1", name: "アルファ生命" },
   { masterId: "GI-0001", firm: "beta", code: "12", name: "アルファ生命" },
-  { masterId: "GI-0002", firm: "alpha", code: "2", name: "投資家ブラボー" },
+  { masterId: "GI-0002", firm: "alpha", code: "2", name: "ブラボー損保" },
   { masterId: "GI-0002", firm: "beta", code: "3", name: "ブラボー損保" },
-  { masterId: "GI-0007", firm: "gamma", code: "1", name: "チャーリー公的" },
+  { masterId: "GI-0007", firm: "gamma", code: "1", name: "チャーリー年金" },
 ];
 
 export function seedSnapshot(personas: readonly InvestorPersona[] = INVESTOR_MASTER): InvestorMasterSnapshot {

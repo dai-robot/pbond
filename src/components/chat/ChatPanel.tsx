@@ -61,11 +61,13 @@ export function ChatPanel({ dealId, layout, initialRoomType, onClose, allowedRoo
   const [query, setQuery] = useState("");
   const [showPinned, setShowPinned] = useState(true);
   const room = rooms.find((r) => r.type === roomType) ?? rooms[0];
+  const roomId = room?.id;
+  const unread = room?.unread ?? 0;
 
-  // 開いたRoomを既読扱い（プロトタイプ挙動・Syndicationのみ）
+  // 開いた部屋を既読にする。部屋オブジェクト自体は描画のたびに新しくなるので、id と未読数だけを見る。
   useEffect(() => {
-    if (room && isSyndication) markRead(room.id);
-  }, [room, markRead, isSyndication]);
+    if (roomId && isSyndication && unread > 0) markRead(roomId);
+  }, [roomId, unread, markRead, isSyndication]);
 
   if (!deal) return null;
   if (!room) {

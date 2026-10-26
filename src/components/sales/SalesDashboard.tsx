@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FIRMS } from "@/data/demoData";
 import { salesPersonById, salesSeesOrder } from "@/lib/coverage";
-import { bookHasStarted, fmtEventAt, isMember, nextEvent, summarizeBook } from "@/lib/deal";
+import { bookHasStarted, filterGroup, fmtEventAt, isMember, nextEvent, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { fmtBn, fmtRemaining } from "@/lib/fmt";
 import { dealPath, salesCanSeeDeal } from "@/lib/roles";
 import type { Deal } from "@/lib/types";
@@ -30,11 +30,12 @@ export function SalesDashboard() {
 
   const visible = useMemo(() => allDeals.filter((d) => isMember(d, firmId) && salesCanSeeDeal(d)), [allDeals, firmId]);
   const ownCount = (d: Deal) => tranchesOf(d.id).reduce((n, t) => n + ordersOf(t.id).filter((o) => salesSeesOrder(o, firmId, salesPersonId, assignments, (id) => same(id, o.globalInvestorId))).length, 0);
-  const deals = visible.filter((d) => (filter === "ALL" ? d.status !== "CLOSED" : filter === "MINE" ? ownCount(d) > 0 && d.status !== "CLOSED" : d.status === "CLOSED"));
+  const finished = (d: Deal) => filterGroup(d) === "CLOSED";
+  const deals = visible.filter((d) => (filter === "ALL" ? !finished(d) : filter === "MINE" ? ownCount(d) > 0 && !finished(d) : finished(d)));
   const counts = {
-    ALL: visible.filter((d) => d.status !== "CLOSED").length,
-    MINE: visible.filter((d) => ownCount(d) > 0 && d.status !== "CLOSED").length,
-    CLOSED: visible.filter((d) => d.status === "CLOSED").length,
+    ALL: visible.filter((d) => !finished(d)).length,
+    MINE: visible.filter((d) => ownCount(d) > 0 && !finished(d)).length,
+    CLOSED: visible.filter((d) => finished(d)).length,
   };
 
   return (
@@ -104,7 +105,7 @@ export function SalesDashboard() {
                     )}
                     <td className="font-semibold">{t.tenorLabel}</td>
                     <td>
-                      <DealStatusBadge status={d.status} />
+                      <DealStatusBadge status={d.status} bookClosed={trancheBookClosed(d, t)} />
                     </td>
                     <td className="num">{summary ? <span className="font-semibold">{fmtBn(summary.aggregateBn)}</span> : <span className="text-[var(--color-ink-3)]">—</span>}</td>
                     <td className="num">{mine}</td>

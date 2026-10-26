@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FIRMS } from "@/data/demoData";
-import { CREATABLE_ISSUERS, INVESTOR_MASTER, ISSUER_PERSONAS, SYNDICATION_FIRM_IDS } from "@/data/demoRoles";
+import { ALL_ISSUERS, INVESTOR_MASTER, SYNDICATION_FIRM_IDS } from "@/data/demoRoles";
 import { SALES_PEOPLE } from "@/lib/coverage";
 import { DESK_PEOPLE } from "@/lib/desk";
 import { dashboardPath, type Role } from "@/lib/roles";
@@ -59,7 +59,7 @@ export default function LoginPage() {
               {INVESTOR_MASTER.map((p) => <option key={p.id} value={`inv:${p.id}`}>{p.name}</option>)}
             </optgroup>
             <optgroup label="発行体">
-              {[...ISSUER_PERSONAS, ...CREATABLE_ISSUERS].map((p) => <option key={p.issuer} value={`iss:${p.issuer}`}>{p.short}</option>)}
+              {ALL_ISSUERS.map((p) => <option key={p.issuer} value={`iss:${p.issuer}`}>{p.short}</option>)}
             </optgroup>
           </select>
         </label>

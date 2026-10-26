@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { DEAL_STATUS_JA } from "@/lib/labels";
+import { displayDealStatusLabel } from "@/lib/labels";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FIRMS } from "@/data/demoData";
 import { investorSegmentOf } from "@/data/demoRoles";
 import { useSalesCoverage } from "../SalesCoverageContext";
 import { salesPersonById, salesSeesOrder } from "@/lib/coverage";
-import { bookHasStarted, currentGuidance, displayInvestorName, firmName, firmShort, fmtEventAt, isMember, marketingTitle, nextEvent, summarizeBook } from "@/lib/deal";
+import { allTranchesBookClosed, bookHasStarted, currentGuidance, displayInvestorName, firmName, firmShort, fmtEventAt, isMember, marketingTitle, nextEvent, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { fmtBn, fmtCoverage, fmtDate, fmtDateFull, fmtPct, fmtRemaining, fmtTime, minutesUntil } from "@/lib/fmt";
 import { allocKey, couponPublished, dealPath, salesCanSeeDeal, tradeOpen } from "@/lib/roles";
 import { AllocationAckText } from "../AllocationAck";
@@ -24,7 +24,7 @@ import { SecondaryComparator } from "../workspace/widgets/SecondaryComparator";
 import { DealStatusBadge, Tag } from "../StatusBadge";
 import { useViewer } from "../ViewerContext";
 import { FirmOrderEntryTab, SalesOwnOrders } from "../workspace/FirmOrderEntryTab";
-import { BookClosedNotice, MarketingUpdateNotice, OutsideOrderAlarm } from "../workspace/DealNotices";
+import { BookClosedNotice, MarketingUpdateNotice, OutsideOrderAlarm, PricingConfirmedNotice } from "../workspace/DealNotices";
 import { TenorSwitcher } from "../workspace/TenorSwitcher";
 import { TrancheContextBar } from "../workspace/TrancheContextBar";
 import { useInvestorMaster } from "../InvestorMasterContext";
@@ -111,7 +111,7 @@ export function SalesWorkspace({ dealId, initialTrancheId, initialTab }: { dealI
           <select value={deal.id} onChange={(e) => router.push(dealPath("SALES", e.target.value))} className="border border-[var(--color-line)] rounded-sm px-1.5 py-0.5 text-[11.5px] bg-white max-w-[260px]" aria-label="案件切替">
             {memberDeals.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.issuer} — {DEAL_STATUS_JA[d.status]}
+                {d.issuer} — {displayDealStatusLabel(d.status, allTranchesBookClosed(d, tranchesOf(d.id)))}
               </option>
             ))}
           </select>
@@ -126,7 +126,7 @@ export function SalesWorkspace({ dealId, initialTrancheId, initialTab }: { dealI
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-[17px] font-semibold leading-tight tracking-tight">{deal.issuer}</h1>
-              <DealStatusBadge status={deal.status} size="md" />
+              <DealStatusBadge status={deal.status} bookClosed={trancheBookClosed(deal, tranche)} size="md" />
             </div>
             <div className="mt-1 flex items-center gap-x-4 gap-y-0.5 flex-wrap text-[11.5px] text-[var(--color-ink-2)]">
               <span>
@@ -166,6 +166,7 @@ export function SalesWorkspace({ dealId, initialTrancheId, initialTab }: { dealI
         <div className="mt-2 space-y-2 empty:hidden">
           <MarketingUpdateNotice tranche={tranche} />
           <BookClosedNotice deal={deal} tranche={tranche} />
+          <PricingConfirmedNotice tranche={tranche} />
           <OutsideOrderAlarm deal={deal} tranche={tranche} orders={own} nameOf={(o) => labelFor(o.globalInvestorId, firmId)} />
         </div>
       </header>
@@ -188,14 +189,14 @@ export function SalesWorkspace({ dealId, initialTrancheId, initialTab }: { dealI
         {tab === "market" && (
           <div className="p-3 max-w-3xl space-y-3" data-testid="sales-market">
             <Panel title={`流通比較 — ${tranche.tenorLabel}`} tag={<Tag tone="demo">デモ</Tag>} right={<span className="text-[10.5px] text-[var(--color-ink-3)]">投資家に出しているものと同じ参考情報です</span>}>
-              <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} publicAt={deal.publicAt} includePending={false} />
+              <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} pricingDate={deal.pricingDate} publicAt={deal.publicAt} includePending={false} />
             </Panel>
             <Panel title="クーポン目安" tag={<Tag tone="demo">デモ</Tag>}>
               <IndicativeCoupon tranche={tranche} guidance={g} />
             </Panel>
           </div>
         )}
-        {tab === "pricing" && <PricingSheet key={tranche.id} tranche={tranche} guidance={g} />}
+        {tab === "pricing" && <PricingSheet key={tranche.id} tranche={tranche} guidance={g} banner={false} />}
         {tab === "trade" && <SalesTradeTab deal={deal} tranche={tranche} viewer={firmId} own={own} />}
       </div>
     </div>

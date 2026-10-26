@@ -1,5 +1,5 @@
 import { FIRMS } from "../data/demoData.ts";
-import { INVESTOR_MASTER, ISSUER_PERSONAS, SYNDICATION_FIRM_IDS } from "../data/demoRoles.ts";
+import { ALL_ISSUERS, INVESTOR_MASTER, SYNDICATION_FIRM_IDS, issuerByName } from "../data/demoRoles.ts";
 import { SALES_PEOPLE, salesPersonById } from "../lib/coverage.ts";
 import { DESK_PEOPLE, deskPersonById } from "../lib/desk.ts";
 import type { Role } from "../lib/roles.ts";
@@ -44,7 +44,7 @@ export function actorFromId(id: string): Actor | undefined {
     return { id, role: "INVESTOR", firmId: "alpha", personId: investor.id, investorId: investor.id, issuer: "", label: investor.name };
   }
   if (kind === "iss") {
-    const issuer = ISSUER_PERSONAS.find((p) => p.issuer === key);
+    const issuer = issuerByName(key);
     if (!issuer && !key) return undefined;
     return { id, role: "ISSUER", firmId: "alpha", personId: key, investorId: "", issuer: key, label: issuer?.short ?? key };
   }
@@ -59,7 +59,7 @@ export function allActors(): Actor[] {
     ...DESK_PEOPLE.filter((p) => p.desk === "DOCUMENTATION").map((p) => `doc:${p.id}`),
     ...SYNDICATION_FIRM_IDS.map((f) => `aud:${f}`),
     ...INVESTOR_MASTER.map((p) => `inv:${p.id}`),
-    ...ISSUER_PERSONAS.map((p) => `iss:${p.issuer}`),
+    ...ALL_ISSUERS.map((p) => `iss:${p.issuer}`),
   ];
   return ids.map((id) => actorFromId(id)).filter((a): a is Actor => !!a);
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { FIRMS } from "@/data/demoData";
-import { ISSUER_PERSONAS, SYNDICATION_FIRM_IDS } from "@/data/demoRoles";
+import { ALL_ISSUERS, SYNDICATION_FIRM_IDS } from "@/data/demoRoles";
 import { DEMO_NOW_BASE, shiftDemoDays } from "@/lib/fmt";
 import { SALES_PEOPLE, salesPersonById } from "@/lib/coverage";
 import { DESK_PEOPLE, activeDeskPerson, deskPersonById } from "@/lib/desk";
@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { investors, isSelectable } = useInvestorMaster();
   const investorOptions = useMemo(() => investors.filter((p) => isSelectable(p.id)).sort((a, b) => a.name.localeCompare(b.name, "ja")), [investors, isSelectable]);
   const issuers = useMemo(() => {
-    const map = new Map(ISSUER_PERSONAS.map((p) => [p.issuer, p]));
+    const map = new Map(ALL_ISSUERS.map((p) => [p.issuer, p]));
     for (const d of deals) if (!map.has(d.issuer)) map.set(d.issuer, { issuer: d.issuer, short: d.issuerShort, contact: "財務部" });
     return [...map.values()];
   }, [deals]);
@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     v.role === "INVESTOR"
       ? investorOptions.find((p) => p.id === v.investorId)?.name
       : v.role === "ISSUER"
-        ? ISSUER_PERSONAS.find((p) => p.issuer === v.issuer)?.short
+        ? issuers.find((p) => p.issuer === v.issuer)?.short ?? v.issuer
         : v.role === "SALES"
           ? `${FIRMS[v.firmId].short} ${salesPersonById(salesId ?? "")?.name ?? ""}`
           : v.role === "UNDERWRITING" || v.role === "DOCUMENTATION"

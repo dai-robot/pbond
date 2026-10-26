@@ -217,7 +217,7 @@ export function FirmOrderEntryTab({ deal, tranche, viewer, mode, orders }: { dea
                 </button>
               ))}
             </div>
-            <div className="mt-0.5 text-[10.5px] text-[var(--color-ink-3)]">レンジのタイトサイドがマーケットオーダーです。リミットのままでは配分できません。</div>
+            <div className="mt-0.5 text-[10.5px] text-[var(--color-ink-3)]">レンジのタイトサイドがマーケットオーダーです。同じ指値も配分できます。それより広いリミットは配分できません。</div>
           </div>
 
           {type === "LIMIT" && (
@@ -273,7 +273,7 @@ export function FirmOrderEntryTab({ deal, tranche, viewer, mode, orders }: { dea
               type="button"
               disabled={!submit入力可}
               onClick={() => {
-                createFirmOrder(tranche.id, viewer, {
+                const result = createFirmOrder(tranche.id, viewer, {
                   amountBn: amountNum,
                   type,
                   limitBp: type === "LIMIT" ? limitNum : undefined,
@@ -285,6 +285,10 @@ export function FirmOrderEntryTab({ deal, tranche, viewer, mode, orders }: { dea
                   salesPersonId: mode === "sales" ? salesPersonId : undefined,
                   entryTag: afterCutoff && newInvestor && mode === "syndicate" ? "LATE_ENTRY" : undefined,
                 });
+                if (!result.ok) {
+                  setSaved(result.error);
+                  return;
+                }
                 setSaved(`${fmtBn(amountNum)} ${type === "MARKET" ? "マーケットオーダー" : `リミット +${limitNum}bp`} を登録しました（${fmtTime(DEMO_NOW, { always: true })}）`);
                 // reset lightly
                 setAmount("1");
@@ -299,7 +303,7 @@ export function FirmOrderEntryTab({ deal, tranche, viewer, mode, orders }: { dea
             >
               オーダーを登録
             </button>
-            {saved && <span className="text-[11px] text-[var(--color-ok)] font-semibold">{saved}</span>}
+            {saved && <span className={`text-[11px] font-semibold ${saved.includes("登録しました") ? "text-[var(--color-ok)]" : "text-[var(--color-danger)]"}`}>{saved}</span>}
             {liveExisting && firmOwnsEntry(liveExisting, viewer, channel) && <CancelOrderButton deal={deal} tranche={tranche} order={liveExisting} firmId={viewer} who={mode === "sales" ? "セールス" : "シンジケート"} testId={`${mode}-cancel`} />}
             {deal.status !== "BOOK OPEN" && deal.status !== "BOOK CLOSED" && <span className="text-[11px] text-[var(--color-ink-3)]">{DEAL_STATUS_JA[deal.status]} のため登録できません。</span>}
           </div>

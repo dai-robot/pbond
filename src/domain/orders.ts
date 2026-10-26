@@ -73,6 +73,20 @@ export function firmBdError(deal: Deal, bd: unknown, accountX: boolean, enteredB
   return undefined;
 }
 
+/** 自社の最新受注と、金額・種別・指値・B&D・コメントが同じ。もう一度入れても台帳は変えない。 */
+export function unchangedFirmOrder(book: OrderBook, investors: InvestorBook, trancheId: string, enteredByFirm: FirmId, input: FirmOrderInput) {
+  const pickedId = input.investorId;
+  const canonicalId = pickedId && !isAccountXInvestor(pickedId) ? resolve(investors, pickedId) : pickedId;
+  const live = canonicalId ? book.orders.find((o) => o.trancheId === trancheId && o.globalInvestorId === canonicalId && o.status !== "CANCELLED") : undefined;
+  if (!live) return false;
+  const prevOwn = [...live.submissions].reverse().find((s) => s.receivedByFirm === enteredByFirm);
+  if (!prevOwn) return false;
+  const limitBp = input.type === "LIMIT" ? input.limitBp : undefined;
+  const nextBd = isAccountXInvestor(live.globalInvestorId) ? live.bdFirmId : input.bdFirmId;
+  const nextComment = input.comment !== undefined ? input.comment.trim() || undefined : prevOwn.comment;
+  return prevOwn.amountBn === input.amountBn && prevOwn.type === input.type && prevOwn.limitBp === limitBp && live.bdFirmId === nextBd && (prevOwn.comment || undefined) === (nextComment || undefined);
+}
+
 function orderTerms(amountBn: number, type: OrderType, limitBp?: number) {
   return `${fmtBn(amountBn)} ${type === "MARKET" ? "マーケット" : `リミット +${limitBp}bp`}`;
 }
@@ -253,6 +267,7 @@ export function createFirmOrder(book: OrderBook, investors: InvestorBook, tranch
   if (isOutsideGuidance({ type: input.type, limitBp }, g)) return undefined;
   if (!live && !firmNewOrderAllowed(deal, input.channel, tranche).allowed) return undefined;
   const people = personas(investors);
+  if (live && unchangedFirmOrder(book, investors, tranche.id, enteredByFirm, input)) return undefined;
   if (live) {
     const bumped = bump(book);
     const prevOwn = [...live.submissions].reverse().find((s) => s.receivedByFirm === enteredByFirm);

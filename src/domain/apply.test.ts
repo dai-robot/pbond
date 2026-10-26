@@ -163,17 +163,125 @@ test("投資家への応答に、他の投資家の名前とコメントが残�
   if (!noted.ok) return;
   const shown = projectWorld(noted.world, investor);
   const body = JSON.stringify(shown);
-  for (const secret of ["他投資家コメントZZ", "原簿名ZZ", "履歴の他投資家コメントZZ", "統合された第三者ZZ", "社内呼称ZZ", "旧名ZZ", "投資家ブラボー", "ブラボー損保", "アルファ生命（未照合）", "投資家チャーリー", "チャットの他投資家コメントZZ", "債券運用 B"]) {
+  for (const secret of ["他投資家コメントZZ", "原簿名ZZ", "履歴の他投資家コメントZZ", "統合された第三者ZZ", "社内呼称ZZ", "旧名ZZ", "投資家ブラボー", "ブラボー損保", "アルファ生命（未照合）", "チャーリー年金", "チャットの他投資家コメントZZ", "債券運用 B"]) {
     assert.equal(body.includes(secret), false, secret);
   }
   assert.equal(body.includes("本人だけのコメントZZ"), true);
-  assert.equal(body.includes("投資家アルファ"), true);
+  assert.equal(body.includes("アルファ生命"), true);
   assert.equal(body.includes("運用部 A"), true);
   const book = shown.orders.orders;
   assert.equal(book.find((order) => order.globalInvestorId === "GI-0001")?.comment, "本人だけのコメントZZ");
   assert.equal(book.find((order) => order.globalInvestorId === "GI-0002")?.amountBn, 2.7);
   assert.equal(book.reduce((sum, order) => sum + order.amountBn, 0), 3.7);
   const desk = JSON.stringify(projectWorld(noted.world, sales));
-  assert.equal(desk.includes("投資家ブラボー"), true);
+  assert.equal(desk.includes("ブラボー損保"), true);
   assert.equal(desk.includes("他投資家コメントZZ"), true);
+});
+
+test("タイトサイドと同じ指値は配分でき、広い指値は配分できない", () => {
+  const created = applyCommand(emptyWorld(), admin, {
+    type: "createDeal",
+    input: {
+      issuer: "スザク運輸",
+      issuerShort: "スザク",
+      coLeadIds: ["beta"],
+      tenorLabel: "5年",
+      amountOku: 300,
+      publicAt: "2026-09-23 09:00",
+      orderCutoffAt: "2026-09-30 11:00",
+      pricingDate: "2026-09-30",
+      paymentDate: "2026-10-07",
+      guidanceLowBp: 16,
+      guidanceHighBp: 25,
+    },
+  });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const trancheId = created.world.tranches[0].id;
+  const investor = actorFromId("inv:GI-0001");
+  assert.ok(investor);
+  const ordered = applyCommand(created.world, investor, {
+    type: "createOrder",
+    trancheId,
+    input: { amountBn: 1, type: "LIMIT", limitBp: 18, bdFirmId: "alpha", placedWith: ["alpha"] },
+  });
+  assert.equal(ordered.ok, true);
+  if (!ordered.ok) return;
+  const row = { globalInvestorId: "GI-0001", finalOrderBn: 1, allocationBn: 0.5, marketOrder: true as const };
+  const blocked = applyCommand(ordered.world, admin, { type: "saveAllocation", trancheId, rows: [row] });
+  assert.equal(blocked.ok, false);
+  if (blocked.ok) return;
+  assert.equal(blocked.error, "マーケットオーダーではないため配分できません");
+  const tightened = applyCommand(ordered.world, admin, {
+    type: "updateTerms",
+    dealId: ordered.world.deals[0].id,
+    input: { trancheId, guidanceLowBp: 18, guidanceHighBp: 19, marketingEffectiveAt: "2026-09-23 19:00" },
+  });
+  assert.equal(tightened.ok, true);
+  if (!tightened.ok) return;
+  const saved = applyCommand(tightened.world, admin, { type: "saveAllocation", trancheId, rows: [{ ...row, marketOrder: false }] });
+  assert.equal(saved.ok, true);
+  if (!saved.ok) return;
+  assert.equal(saved.world.allocations[0]?.rows[0]?.allocationBn, 0.5);
+  assert.equal(saved.world.allocations[0]?.rows[0]?.marketOrder, true);
+});
+
+test("同じ内容のオーダーは二度入れられない", () => {
+  const world = publishedDeal();
+  const trancheId = world.tranches[0].id;
+  const input = { amountBn: 1, type: "LIMIT" as const, limitBp: 18, bdFirmId: "alpha" as const, identityMode: "DISCLOSED" as const, investorId: "GI-0001", channel: "SYNDICATE_MANUAL" as const };
+  const first = applyCommand(world, admin, { type: "createFirmOrder", trancheId, input });
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  const order = first.world.orders.orders.find((o) => o.globalInvestorId === "GI-0001");
+  assert.equal(order?.entryLog?.length, 1);
+  const again = applyCommand(first.world, admin, { type: "createFirmOrder", trancheId, input });
+  assert.equal(again.ok, false);
+  if (again.ok) return;
+  assert.equal(again.error, "同じ内容のオーダーがすでに入っています");
+  assert.equal(first.world.orders.orders.find((o) => o.globalInvestorId === "GI-0001")?.entryLog?.length, 1);
+  const changed = applyCommand(first.world, admin, { type: "createFirmOrder", trancheId, input: { ...input, amountBn: 2 } });
+  assert.equal(changed.ok, true);
+  if (!changed.ok) return;
+  assert.equal(changed.world.orders.orders.find((o) => o.globalInvestorId === "GI-0001")?.entryLog?.length, 2);
+});
+
+test("プライシングの確定は事務主幹事だけができ、各ロールにクーポン・単価・債券単利が渡る", () => {
+  const world = publishedDeal();
+  const trancheId = world.tranches[0].id;
+  const colead = actorFromId("syn:beta")!;
+  const denied = applyCommand(world, colead, { type: "confirmPricing", trancheId, jgbSimplePct: 1.005, spreadBp: 32 });
+  assert.equal(denied.ok, false);
+  const offGrid = applyCommand(world, admin, { type: "confirmPricing", trancheId, jgbSimplePct: 1.001, spreadBp: 32 });
+  assert.equal(offGrid.ok, false);
+  const confirmed = applyCommand(world, admin, { type: "confirmPricing", trancheId, jgbSimplePct: 1.005, spreadBp: 32 });
+  assert.equal(confirmed.ok, true);
+  if (!confirmed.ok) return;
+  const saved = confirmed.world.tranches[0].pricingConfirmed;
+  assert.equal(saved?.couponPct, 1.327);
+  assert.equal(saved?.priceYen, 100);
+  assert.equal(saved?.bondSimplePct, 1.327);
+  for (const id of ["sales:alpha-aoyama", "inv:GI-0001", "iss:スザク運輸", "uw:alpha-uw-aoki", "doc:alpha-doc-nishi", "aud:alpha"]) {
+    const actor = actorFromId(id);
+    assert.ok(actor);
+    const shown = projectWorld(confirmed.world, actor!);
+    const row = shown.tranches.find((t) => t.id === trancheId)?.pricingConfirmed;
+    assert.equal(row?.couponPct, 1.327, id);
+    assert.equal(row?.priceYen, 100, id);
+    assert.equal(row?.bondSimplePct, 1.327, id);
+  }
+});
+
+test("同じ部屋の再既読は台帳を変えない", () => {
+  const world = publishedDeal();
+  const roomId = world.rooms[0]?.id;
+  assert.ok(roomId);
+  const once = applyCommand(world, admin, { type: "markRead", roomId });
+  assert.equal(once.ok, true);
+  if (!once.ok) return;
+  assert.equal(once.world.reads[admin.id]?.includes(roomId), true);
+  const twice = applyCommand(once.world, admin, { type: "markRead", roomId });
+  assert.equal(twice.ok, true);
+  if (!twice.ok) return;
+  assert.equal(twice.world, once.world);
 });

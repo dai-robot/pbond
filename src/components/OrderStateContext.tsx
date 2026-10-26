@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import type { ApplyResult } from "@/domain/apply";
 import type { FirmOrderInput, InvestorOrderInput, OrderPatch } from "@/domain/orders";
 import type { AccountXInvestor } from "@/domain/world";
 import type { CanonicalOrder, FirmId } from "@/lib/types";
@@ -16,7 +17,7 @@ interface OrderState {
   updateOrder: (orderId: string, patch: OrderPatch) => void;
   cancelOrder: (orderId: string, actor?: string) => void;
   createOrder: (trancheId: string, investorId: string, input: InvestorOrderInput) => void;
-  createFirmOrder: (trancheId: string, enteredByFirm: FirmId, input: FirmOrderInput) => void;
+  createFirmOrder: (trancheId: string, enteredByFirm: FirmId, input: FirmOrderInput) => ApplyResult;
   mergeOrders: (keepId: string, absorbId: string) => void;
   acknowledged: Set<string>;
   acknowledge: (key: string) => void;
@@ -51,7 +52,7 @@ export function OrderStateProvider({ children }: { children: ReactNode }) {
     commit({ type: "createOrder", trancheId, input });
   }, [commit]);
   const createFirmOrder = useCallback((trancheId: string, _enteredByFirm: FirmId, input: FirmOrderInput) => {
-    commit({ type: "createFirmOrder", trancheId, input });
+    return commit({ type: "createFirmOrder", trancheId, input });
   }, [commit]);
   const mergeOrders = useCallback((keepId: string, absorbId: string) => {
     commit({ type: "mergeOrders", keepId, absorbId });

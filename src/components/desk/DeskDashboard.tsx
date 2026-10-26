@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { FIRMS } from "@/data/demoData";
 import { activeDeskPerson } from "@/lib/desk";
-import { bookHasStarted, fmtEventAt, isMember, nextEvent, summarizeBook } from "@/lib/deal";
+import { allTranchesBookClosed, bookHasStarted, fmtEventAt, isMember, nextEvent, summarizeBook } from "@/lib/deal";
 import { fmtBn, fmtRemaining } from "@/lib/fmt";
 import { dealPath, type Role } from "@/lib/roles";
 import { useDealCatalog } from "../DealStateContext";
@@ -58,7 +58,7 @@ export function DeskDashboard({ role }: { role: Extract<Role, "UNDERWRITING" | "
                 <tr key={d.id} className="cursor-pointer hover:bg-slate-50" onClick={() => router.push(dealPath(role, d.id))} data-testid={`desk-deal-${d.id}`}>
                   <td className="font-semibold">{d.issuer}</td>
                   <td>
-                    <DealStatusBadge status={d.status} />
+                    <DealStatusBadge status={d.status} bookClosed={allTranchesBookClosed(d, tranches)} />
                   </td>
                   <td className="num">{total === null ? "—" : fmtBn(total)}</td>
                   <td>{ne ? `${ne.label} ${fmtEventAt(ne)}（${fmtRemaining(ne.at)}）` : "—"}</td>

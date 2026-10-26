@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { allTranchesBookClosed } from "@/lib/deal";
 import { chatRoomsForRole } from "@/lib/roles";
 import { useDealCatalog } from "../DealStateContext";
 import { useViewer } from "../ViewerContext";
@@ -36,7 +37,9 @@ export function ChatListView({ deals }: { deals: Deal[] }) {
             const c = dealCounts(d.id, roomTypes);
             const rooms = roomsForDeal(d.id).filter((r) => roomTypes.includes(r.type));
             const lastMsg = rooms.flatMap((r) => r.messages.map((m) => ({ m, r }))).sort((x, y) => (x.m.at < y.m.at ? 1 : -1))[0];
-            const tenors = tranchesOf(d.id).map((t) => t.tenorLabel).join("/");
+            const tenorsOfDeal = tranchesOf(d.id);
+            const tenors = tenorsOfDeal.map((t) => t.tenorLabel).join("/");
+            const booksClosed = allTranchesBookClosed(d, tenorsOfDeal);
             const active = d.id === selected;
             return (
               <li key={d.id}>
@@ -59,7 +62,7 @@ export function ChatListView({ deals }: { deals: Deal[] }) {
                     </span>
                   </div>
                   <div className="mt-0.5 flex items-center gap-1.5">
-                    <DealStatusBadge status={d.status} />
+                    <DealStatusBadge status={d.status} bookClosed={booksClosed} />
                     <span className="text-[10.5px] text-[var(--color-ink-3)] font-mono ml-auto">last {fmtTime(c.lastAt)}</span>
                   </div>
                   {lastMsg && (

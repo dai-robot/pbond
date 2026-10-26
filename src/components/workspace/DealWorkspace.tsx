@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { DEAL_STATUS_JA } from "@/lib/labels";
+import { displayDealStatusLabel } from "@/lib/labels";
 import { activeDeskPerson } from "@/lib/desk";
 import { chatRoomsForRole, dashboardPath, dealPath } from "@/lib/roles";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { bookHasStarted, currentGuidance, firmName, firmShort, fmtEventAt, isAdminLead, isMember, marketingTitle, nextEvent, pendingGuidance, summarizeBook } from "@/lib/deal";
+import { allTranchesBookClosed, bookHasStarted, currentGuidance, firmName, firmShort, fmtEventAt, isAdminLead, isMember, marketingTitle, nextEvent, pendingGuidance, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { fmtBn, fmtCoverage, fmtDate, fmtRemaining, fmtTime, minutesUntil } from "@/lib/fmt";
 import { useDealCatalog } from "../DealStateContext";
 import { useInvestorMaster } from "../InvestorMasterContext";
@@ -123,7 +123,7 @@ export function DealWorkspace({ dealId, initialTrancheId, initialTab }: { dealId
             >
               {memberDeals.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.issuer} — {DEAL_STATUS_JA[d.status]}
+                  {d.issuer} — {displayDealStatusLabel(d.status, allTranchesBookClosed(d, tranchesOf(d.id)))}
                 </option>
               ))}
               {deal.status === "CLOSED" && <option value={deal.id}>{deal.issuer} — 終了</option>}
@@ -140,7 +140,7 @@ export function DealWorkspace({ dealId, initialTrancheId, initialTab }: { dealId
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[17px] font-semibold leading-tight tracking-tight">{deal.issuer}</h1>
-                <DealStatusBadge status={deal.status} size="md" />
+                <DealStatusBadge status={deal.status} bookClosed={trancheBookClosed(deal, tranche)} size="md" />
                 {isAdminLead(deal, firmId) ? <Tag tone="info">当社 = 事務主幹事</Tag> : <Tag>当社 = 共同主幹事</Tag>}
                 {viewOnly && <Tag>閲覧のみ</Tag>}
               </div>

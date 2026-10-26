@@ -81,6 +81,15 @@ export interface Tranche {
   /** 発行価格（額面100に対する%）。Pricing後のみ */
   pricePct?: number;
   couponPublishedAt?: DemoTime;
+  /** 事務主幹事がプライシング表の1行を確定した内容。各ロールへこの3つを出す。 */
+  pricingConfirmed?: {
+    at: DemoTime;
+    jgbSimplePct: number;
+    spreadBp: number;
+    couponPct: number;
+    priceYen: number;
+    bondSimplePct: number;
+  };
   termSheet: { status: "PUBLISHED" | "NOT_PUBLISHED"; publishedAt?: DemoTime };
   /** この年限のブックをファイナルクローズした時刻。年限ごとに独立。 */
   bookClosedAt?: DemoTime;

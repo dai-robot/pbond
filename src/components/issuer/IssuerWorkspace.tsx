@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { DEAL_STATUS_JA } from "@/lib/labels";
+import { displayDealStatusLabel } from "@/lib/labels";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ISSUER_PERSONAS } from "@/data/demoRoles";
-import { bookHasStarted, currentGuidance, firmName, firmShort, fmtEventAt, nextEvent, summarizeBook } from "@/lib/deal";
+import { allTranchesBookClosed, bookHasStarted, currentGuidance, firmName, firmShort, fmtEventAt, nextEvent, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { fmtBn, fmtCoverage, fmtDate, fmtRemaining, fmtTime, minutesUntil } from "@/lib/fmt";
 import { ISSUER_ROOM_TYPES, dealPath, issuerCanSeeDeal, issuerDeals } from "@/lib/roles";
 import { useDealCatalog } from "../DealStateContext";
@@ -101,7 +101,7 @@ export function IssuerWorkspace({ dealId, initialTrancheId, initialTab }: { deal
             <select value={deal.id} onChange={(e) => router.push(dealPath("ISSUER", e.target.value))} className="border border-[var(--color-line)] rounded-sm px-1.5 py-0.5 text-[11.5px] bg-white max-w-[260px]" aria-label="案件切替">
               {myDeals.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.issuer} — {tranchesOf(d.id).map((t) => t.tenorLabel).join("/")} — {DEAL_STATUS_JA[d.status]}
+                  {d.issuer} — {tranchesOf(d.id).map((t) => t.tenorLabel).join("/")} — {displayDealStatusLabel(d.status, allTranchesBookClosed(d, tranchesOf(d.id)))}
                 </option>
               ))}
             </select>
@@ -116,7 +116,7 @@ export function IssuerWorkspace({ dealId, initialTrancheId, initialTab }: { deal
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[17px] font-semibold leading-tight tracking-tight">{deal.issuer}</h1>
-                <DealStatusBadge status={deal.status} size="md" />
+                <DealStatusBadge status={deal.status} bookClosed={trancheBookClosed(deal, tranche)} size="md" />
                 <Tag tone="info">発行体表示</Tag>
               </div>
               <div className="mt-1 flex items-center gap-x-4 gap-y-0.5 flex-wrap text-[11.5px] text-[var(--color-ink-2)]">
@@ -174,7 +174,7 @@ export function IssuerWorkspace({ dealId, initialTrancheId, initialTab }: { deal
           {tab === "market" && (
             <div className="p-3 space-y-3">
               <Panel title={`流通比較 — ${tranche.tenorLabel}`} tag={<Tag tone="demo">デモ</Tag>} right={<span className="text-[10.5px] text-[var(--color-ink-3)]">統計値と取引値は仮の数字です</span>}>
-                <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} publicAt={deal.publicAt} includePending={false} />
+                <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} pricingDate={deal.pricingDate} publicAt={deal.publicAt} includePending={false} />
               </Panel>
               <div className="grid grid-cols-2 gap-3">
                 <Panel title="クーポン目安" tag={<Tag tone="demo">デモ</Tag>}>

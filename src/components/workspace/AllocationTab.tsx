@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { allocationPhase, anyInvestorConfirmed, coLeadVisibleRows, isDraftSaved, isShownToCoLeads, pendingCoLeads, type AllocationPhase, type AllocationRow, type TrancheAllocation } from "@/lib/allocation";
-import { displayInvestorName, firmName, firmShort, isAdminLead } from "@/lib/deal";
-import { fmtBn, fmtTime } from "@/lib/fmt";
+import { currentGuidance, displayInvestorName, firmName, firmShort, isAdminLead, resolvedCanonical } from "@/lib/deal";
+import { fmtBn, fmtBp, fmtTime } from "@/lib/fmt";
+import { countsAsMarketOrder } from "@/lib/roles";
 import type { CanonicalOrder, Deal, Tranche } from "@/lib/types";
 import { AllocationAckText } from "../AllocationAck";
 import { useAllocation } from "../AllocationStateContext";
@@ -174,7 +175,9 @@ function DraftForm({ deal, tranche, orders, initial, saved, onSave, onShow, onCo
     return [o.globalInvestorId, prev ? String(prev.allocationBn) : ""];
   })));
   const [note, setNote] = useState<string | null>(null);
-  const allocatable = orders.filter((o) => o.type === "MARKET" || initial.some((r) => r.globalInvestorId === o.globalInvestorId && r.confirmedAt));
+  const guidance = currentGuidance(tranche);
+  const marketOf = (o: CanonicalOrder) => countsAsMarketOrder(resolvedCanonical(o, deal), guidance);
+  const allocatable = orders.filter((o) => marketOf(o) || initial.some((r) => r.globalInvestorId === o.globalInvestorId && r.confirmedAt));
   const parsed = allocatable.map((o) => ({ order: o, n: Number(amounts[o.globalInvestorId]) }));
   const ready = allocatable.length > 0 && parsed.every((p) => amounts[p.order.globalInvestorId]?.trim() !== "" && Number.isFinite(p.n) && p.n >= 0 && Math.abs(p.n * 10 - Math.round(p.n * 10)) < 1e-9);
   const total = parsed.reduce((s, p) => s + (Number.isFinite(p.n) ? p.n : 0), 0);
@@ -194,7 +197,7 @@ function DraftForm({ deal, tranche, orders, initial, saved, onSave, onShow, onCo
 
   return (
     <section className="panel overflow-auto" data-testid="allocation-draft">
-      <p className="px-3 pt-2 text-[12px] text-[var(--color-ink-2)]">配分できるのはマーケットオーダーだけです。レンジのタイトサイドをマーケットオーダーと呼び、リミットのままでは配分できません。0億円も選べます。単位は0.1億円です。オーダー金額は超えられません。保存しただけでは誰にも出ません。確定した行は直せません。</p>
+      <p className="px-3 pt-2 text-[12px] text-[var(--color-ink-2)]">配分できるのはマーケットオーダーだけです。レンジのタイトサイドと同じ指値も、マーケットオーダーとして配分できます。それより広いリミットは配分できません。0億円も選べます。単位は0.1億円です。オーダー金額は超えられません。保存しただけでは誰にも出ません。確定した行は直せません。</p>
       {orders.length === 0 ? (
         <p className="px-3 py-3 text-[12px] text-[var(--color-ink-3)]">この年限に生きているオーダーがないため、ドラフトは登録できません。</p>
       ) : (
@@ -203,13 +206,15 @@ function DraftForm({ deal, tranche, orders, initial, saved, onSave, onShow, onCo
           <tbody>
             {orders.map((o) => {
               const locked = !!initial.find((r) => r.globalInvestorId === o.globalInvestorId)?.confirmedAt;
-              const market = o.type === "MARKET" || locked;
+              const terms = resolvedCanonical(o, deal);
+              const tight = terms.type === "LIMIT" && marketOf(o);
+              const market = marketOf(o) || locked;
               const tooMuch = !locked && market && Number.isFinite(Number(amounts[o.globalInvestorId])) && Math.round(Number(amounts[o.globalInvestorId]) * 10) > Math.round(o.amountBn * 10);
               const shrunk = locked && Math.round(Number(initial.find((r) => r.globalInvestorId === o.globalInvestorId)?.allocationBn) * 10) > Math.round(o.amountBn * 10);
               return (
               <tr key={o.id}>
                 <td className="font-semibold">{displayInvestorName(o, firmId, orders, deal).name}</td>
-                <td>{fmtBn(o.amountBn)} {o.type === "MARKET" ? "マーケットオーダー" : "リミット"}</td>
+                <td>{fmtBn(o.amountBn)} {terms.type === "MARKET" ? "マーケットオーダー" : tight ? `リミット ${fmtBp(terms.limitBp)}（タイトサイド）` : `リミット ${fmtBp(terms.limitBp)}`}</td>
                 <td>
                   {market ? (
                     <label className="inline-flex items-center gap-1.5">

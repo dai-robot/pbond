@@ -59,7 +59,7 @@ export function OrderInlineEditor({
       onSubmit={(e) => {
         e.preventDefault();
         if (!canSave) return;
-        createFirmOrder(tranche.id, viewer, {
+        const result = createFirmOrder(tranche.id, viewer, {
           amountBn: amountNum,
           type,
           limitBp: type === "LIMIT" ? limitNum : undefined,
@@ -72,7 +72,7 @@ export function OrderInlineEditor({
           force: !reception && (force || closeEdit),
           entryTag: force && !closeEdit && !reception ? "SYSTEM_RECOVERY" : undefined,
         });
-        setSaved("更新しました");
+        setSaved(result.ok ? "更新しました" : result.error);
       }}
     >
       <div className="w-full text-[11px] font-semibold text-[var(--color-ink-2)]">{title}</div>
@@ -112,7 +112,7 @@ export function OrderInlineEditor({
         更新
       </button>
       {previewOutside && <span className="text-[11px] font-semibold text-[var(--color-danger)]">レンジ外のオーダーは受け付けません</span>}
-      {saved && <span className="text-[11px] font-semibold text-[var(--color-ok)]">{saved}</span>}
+      {saved && <span className={`text-[11px] font-semibold ${saved === "更新しました" ? "text-[var(--color-ok)]" : "text-[var(--color-danger)]"}`}>{saved}</span>}
     </form>
   );
 }

@@ -1,5 +1,6 @@
 import { currentGuidance, shouldReviseMarketing } from "../lib/deal.ts";
 import { DEMO_NOW, isPast } from "../lib/fmt.ts";
+import { pricingRow } from "../lib/pricing.ts";
 import type { ChatRoom, Deal, DealStatus, FirmId, Guidance, Tranche } from "../lib/types.ts";
 
 export interface CreateDealInput {
@@ -234,6 +235,17 @@ export function applyTerms(deals: Deal[], tranches: Tranche[], dealId: string, i
     return next;
   });
   return { deals: nextDeals, tranches: nextTranches };
+}
+
+export function applyConfirmPricing(tranches: Tranche[], trancheId: string, input: { jgbSimplePct: number; spreadBp: number }, at: string): Tranche[] | { error: string } {
+  const row = pricingRow(input.jgbSimplePct, input.spreadBp);
+  if (!row) return { error: "確定できる行がありません" };
+  if (!tranches.some((t) => t.id === trancheId)) return { error: "年限がありません" };
+  return tranches.map((t) =>
+    t.id === trancheId
+      ? { ...t, pricingConfirmed: { at, jgbSimplePct: row.jgbSimplePct, spreadBp: input.spreadBp, couponPct: row.couponPct, priceYen: row.priceYen, bondSimplePct: row.bondSimplePct } }
+      : t,
+  );
 }
 
 export function applyCloseTranche(tranches: Tranche[], trancheId: string): Tranche[] {

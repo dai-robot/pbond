@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { chatRoomsForRole, dealPath, firmNewOrderAllowed, investorCanSeeDeal, isOutsideGuidance, liveOrderStatus, modifyOrderRule, newOrderRule, roleFromPath, salesCanSeeDeal } from "./roles.ts";
+import { chatRoomsForRole, countsAsMarketOrder, dealPath, firmNewOrderAllowed, investorCanSeeDeal, isOutsideGuidance, liveOrderStatus, modifyOrderRule, newOrderRule, roleFromPath, salesCanSeeDeal } from "./roles.ts";
 import type { CanonicalOrder, Deal } from "./types.ts";
 
 describe("role routing", () => {
@@ -71,5 +71,15 @@ describe("ブック中の新規オーダー", () => {
     const order = { status: "ACTIVE", type: "LIMIT", limitBp: 18, amountBn: 5, submissions: [] } as unknown as CanonicalOrder;
     const deal = { adminLeadId: "alpha", coLeadIds: [] } as unknown as Deal;
     assert.equal(liveOrderStatus(order, deal, g), "OUTSIDE GUIDANCE");
+  });
+  it("treats a limit at the tight side as a market order", () => {
+    const wide = { id: "g", day: 1, label: "+16〜25bp", lowBp: 16, highBp: 25, enteredAt: "2026-09-23 19:00", effectiveAt: "2026-09-23 19:00" };
+    const tight = { ...wide, day: 2, label: "+18〜19bp", lowBp: 18, highBp: 19 };
+    const limit = { type: "LIMIT" as const, limitBp: 18 };
+    assert.equal(countsAsMarketOrder({ type: "MARKET" }, wide), true);
+    assert.equal(countsAsMarketOrder(limit, wide), false);
+    assert.equal(countsAsMarketOrder(limit, tight), true);
+    assert.equal(countsAsMarketOrder({ type: "LIMIT", limitBp: 19 }, tight), false);
+    assert.equal(countsAsMarketOrder(limit, undefined), false);
   });
 });

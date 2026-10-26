@@ -122,7 +122,7 @@ function isoDate(raw: string, year: string) {
   return `${year}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
 }
 
-export function SecondaryComparator({ tranche, guidance, cutoffAt, publicAt, includePending = false }: { tranche: Tranche; guidance?: Guidance; cutoffAt?: string; publicAt?: string; includePending?: boolean }) {
+export function SecondaryComparator({ tranche, guidance, cutoffAt, publicAt, pricingDate: pricingOn, includePending = false }: { tranche: Tranche; guidance?: Guidance; cutoffAt?: string; publicAt?: string; pricingDate?: string; includePending?: boolean }) {
   const today = todayOf(demoNow());
   const year = today.slice(0, 4);
   const years = yearsOf(tranche.tenorLabel);
@@ -137,8 +137,9 @@ export function SecondaryComparator({ tranche, guidance, cutoffAt, publicAt, inc
   const start = guidances[0] ? dateOf(guidances[0]) : today;
   const lastSet = guidances.length ? dateOf(guidances[guidances.length - 1]) : today;
   const cutoffDate = cutoffAt?.slice(0, 10);
+  const pricingDate = pricingOn?.slice(0, 10);
   const padded = addDays(lastSet > today ? lastSet : today, 7);
-  const end = cutoffDate && cutoffDate > padded ? cutoffDate : padded;
+  const end = [cutoffDate, pricingDate].reduce((later, date) => (date && date > later ? date : later), padded);
   const days: string[] = [];
   for (let d = start; d <= end && days.length < 40; d = addDays(d, 1)) days.push(d);
   const segments = rangeSegments(days, guidances, today, now);
@@ -183,7 +184,7 @@ export function SecondaryComparator({ tranche, guidance, cutoffAt, publicAt, inc
   const futureIndex = segments.findIndex((s) => s.future);
   const sq = 7;
 
-  const labelDates = days.filter((d, i) => days.length <= 12 || i === 0 || i === days.length - 1 || d === today || d === cutoffDate || guidances.some((g) => dateOf(g) === d));
+  const labelDates = days.filter((d, i) => days.length <= 12 || i === 0 || i === days.length - 1 || d === today || d === cutoffDate || d === pricingDate || guidances.some((g) => dateOf(g) === d));
   const shownLabels: string[] = [];
   for (const d of labelDates) {
     const at = dayCenter(d);
@@ -249,14 +250,41 @@ export function SecondaryComparator({ tranche, guidance, cutoffAt, publicAt, inc
             </rect>
           );
         })}
-        {cutoffDate && dayCenter(cutoffDate) !== undefined && (
-          <g data-testid="cutoff-line">
-            <line x1={dayCenter(cutoffDate)} x2={dayCenter(cutoffDate)} y1={padT} y2={H - padB} stroke="#dc2626" strokeWidth={1.6} />
-            <text x={dayCenter(cutoffDate)} y={padT + 9} textAnchor="middle" fontSize={9} fill="#dc2626" fontWeight={700}>
-              締切
-            </text>
-          </g>
-        )}
+        {(() => {
+          const cutoffX = cutoffDate ? dayCenter(cutoffDate) : undefined;
+          const pricingX = pricingDate ? dayCenter(pricingDate) : undefined;
+          let cutoffDx = 0;
+          let pricingDx = 0;
+          let pricingLabelDy = 0;
+          if (cutoffX !== undefined && pricingX !== undefined && Math.abs(cutoffX - pricingX) < 48) {
+            if (Math.abs(cutoffX - pricingX) < 4) {
+              const shift = Math.min(16, slot * 0.3);
+              cutoffDx = -shift;
+              pricingDx = shift;
+            }
+            pricingLabelDy = 12;
+          }
+          return (
+            <>
+              {cutoffX !== undefined && (
+                <g data-testid="cutoff-line">
+                  <line x1={cutoffX + cutoffDx} x2={cutoffX + cutoffDx} y1={padT} y2={H - padB} stroke="#dc2626" strokeWidth={1.6} />
+                  <text x={cutoffX + cutoffDx} y={padT + 9} textAnchor="middle" fontSize={9} fill="#dc2626" fontWeight={700}>
+                    締切
+                  </text>
+                </g>
+              )}
+              {pricingX !== undefined && (
+                <g data-testid="pricing-line">
+                  <line x1={pricingX + pricingDx} x2={pricingX + pricingDx} y1={padT} y2={H - padB} stroke="#7c3aed" strokeWidth={1.6} />
+                  <text x={pricingX + pricingDx} y={padT + 9 + pricingLabelDy} textAnchor="middle" fontSize={9} fill="#7c3aed" fontWeight={700}>
+                    条件決定
+                  </text>
+                </g>
+              )}
+            </>
+          );
+        })()}
         {segments.map((seg, i) => seg.timeLabel ? (
           <text key={`t-${seg.id}`} x={xAt(i)} y={H - 20} textAnchor="middle" fontSize={8.5} fill="#1f3f6e">
             {seg.timeLabel}
@@ -284,6 +312,10 @@ export function SecondaryComparator({ tranche, guidance, cutoffAt, publicAt, inc
         <span className="inline-flex items-center gap-1">
           <span className="inline-block w-px h-3 bg-[#dc2626]" />
           オーダー締切
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block w-px h-3 bg-[#7c3aed]" />
+          条件決定
         </span>
       </div>
       <p className="mt-1 text-[10.5px] text-[var(--color-ink-3)]">

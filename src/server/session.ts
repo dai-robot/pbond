@@ -10,13 +10,13 @@ function practicePassword() {
   return process.env.PBOND_PASSWORD || "pbond";
 }
 
-let seeded = false;
+let seededHash: string | undefined;
 function ensureUsers() {
-  if (seeded) return;
-  const salt = randomBytes(16).toString("hex");
-  const hash = `${salt}:${scryptSync(practicePassword(), salt, 32).toString("hex")}`;
-  seedUsers(hash);
-  seeded = true;
+  if (!seededHash) {
+    const salt = randomBytes(16).toString("hex");
+    seededHash = `${salt}:${scryptSync(practicePassword(), salt, 32).toString("hex")}`;
+  }
+  seedUsers(seededHash);
 }
 
 export function passwordMatches(actorId: string, password: string) {

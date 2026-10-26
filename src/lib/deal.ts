@@ -1,5 +1,5 @@
 import { FIRMS, dealById, ordersOf, roomsOf, trancheById, tranchesOf } from "../data/demoData.ts";
-import { DEMO_NOW, fmtDate, fmtTime, isPast } from "./fmt.ts";
+import { DEMO_NOW, demoNow, fmtDate, fmtTime, isPast, todayOf } from "./fmt.ts";
 import type { CanonicalOrder, Deal, DealStatus, DemoTime, FirmId, Guidance, IdentityMode, OrderType, Submission, Tranche } from "./types.ts";
 
 // ---------------------------------------------------------------------
@@ -146,7 +146,11 @@ export function firmVisibleTrail(o: CanonicalOrder, viewer: FirmId): { sub: Subm
       picked.push(sub);
       continue;
     }
-    if (sub.receivedByFirm === viewer) picked.push(sub);
+    if (sub.receivedByFirm === viewer) {
+      const prevFirm = [...picked].reverse().find((s) => s.channel !== "INVESTOR_DIRECT");
+      if (prevFirm && prevFirm.amountBn === sub.amountBn && prevFirm.type === sub.type && prevFirm.limitBp === sub.limitBp) continue;
+      picked.push(sub);
+    }
   }
   const lastByLane = new Map<string, Submission>();
   return picked.map((sub) => {
@@ -498,9 +502,22 @@ export function fmtEventAt(e: TimelineEvent, always = false) {
 export type DealFilter = "ACTIVE" | "UPCOMING" | "CLOSED" | "ALL";
 
 const UPCOMING: DealStatus[] = ["DRAFT", "PRE-MARKETING"];
-export function filterGroup(s: DealStatus): DealFilter {
-  if (s === "CLOSED") return "CLOSED";
-  if (UPCOMING.includes(s)) return "UPCOMING";
+
+/** この年限のブックを閉めている。案件ステータスがブック中のままでも、表示はブッククローズにする。 */
+export function trancheBookClosed(deal: Pick<Deal, "status" | "bookClosedAt">, tranche?: { bookClosedAt?: string }) {
+  return deal.status === "BOOK CLOSED" || !!deal.bookClosedAt || !!tranche?.bookClosedAt;
+}
+
+export function allTranchesBookClosed(deal: Pick<Deal, "status" | "bookClosedAt">, tranches: { bookClosedAt?: string }[]) {
+  return tranches.length > 0 && tranches.every((t) => trancheBookClosed(deal, t));
+}
+
+/** 条件決定日の翌日以降は終了。条件決定日の当日は進行中のまま。 */
+export function filterGroup(deal: Pick<Deal, "status" | "pricingDate">, now: DemoTime = demoNow()): DealFilter {
+  if (deal.status === "CLOSED") return "CLOSED";
+  if (UPCOMING.includes(deal.status)) return "UPCOMING";
+  const pricing = deal.pricingDate?.slice(0, 10);
+  if (pricing && todayOf(now) > pricing) return "CLOSED";
   return "ACTIVE";
 }
 

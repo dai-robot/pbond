@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { FIRMS } from "@/data/demoData";
 import { filterGroup, fmtEventAt, isMember, nextEvent, type DealFilter } from "@/lib/deal";
 import { chatRoomsForRole } from "@/lib/roles";
-import { DEMO_NOW, fmtRemaining, fmtTime } from "@/lib/fmt";
+import { DEMO_NOW, demoNow, fmtRemaining, fmtTime } from "@/lib/fmt";
 import { CreateDealForm } from "./CreateDealForm";
 import { useDealCatalog } from "../DealStateContext";
 import { useViewer } from "../ViewerContext";
@@ -33,20 +33,22 @@ export function DashboardView() {
 
   // Deal Membership: 閲覧者の証券会社が主幹事に入っていないDealは表示しない
   const visibleDeals = useMemo(() => allDeals.filter((d) => isMember(d, firmId)), [allDeals, firmId]);
+  const now = demoNow();
   const counts = useMemo(() => {
     const c: Record<DealFilter, number> = { ACTIVE: 0, UPCOMING: 0, CLOSED: 0, ALL: visibleDeals.length };
-    for (const d of visibleDeals) c[filterGroup(d.status)] += 1;
+    for (const d of visibleDeals) c[filterGroup(d, now)] += 1;
     return c;
-  }, [visibleDeals]);
+  }, [visibleDeals, now]);
   const deals = useMemo(
-    () => (filter === "ALL" ? visibleDeals : visibleDeals.filter((d) => filterGroup(d.status) === filter)),
-    [visibleDeals, filter],
+    () => (filter === "ALL" ? visibleDeals : visibleDeals.filter((d) => filterGroup(d, now) === filter)),
+    [visibleDeals, filter, now],
   );
 
   // 上部サマリー: 未読合計 / @mention合計 / 直近24hのイベント
   const totalUnread = visibleDeals.reduce((s, d) => s + dealCounts(d.id, roomTypes).unread, 0);
   const totalMentions = visibleDeals.reduce((s, d) => s + dealCounts(d.id, roomTypes).mentions, 0);
   const upcoming = visibleDeals
+    .filter((d) => filterGroup(d, now) !== "CLOSED")
     .map((d) => ({ d, e: nextEvent(d, { includePendingGuidance: true }) }))
     .filter((x): x is { d: (typeof visibleDeals)[number]; e: NonNullable<ReturnType<typeof nextEvent>> } => !!x.e)
     .sort((a, b) => (a.e.at < b.e.at ? -1 : 1))

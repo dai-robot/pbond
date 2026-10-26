@@ -9,7 +9,7 @@ import { Tag } from "../StatusBadge";
 import { SpreadDemand } from "../workspace/SpreadDemand";
 import { DealTimelineList } from "../workspace/DealTimelineList";
 import { GuidanceBlock } from "../workspace/GuidanceBlock";
-import { BookClosedNotice, MarketingUpdateNotice, OutsideOrderAlarm } from "../workspace/DealNotices";
+import { BookClosedNotice, MarketingUpdateNotice, OutsideOrderAlarm, PricingConfirmedNotice } from "../workspace/DealNotices";
 import { GuidanceHistoryTable } from "../workspace/GuidanceHistoryTable";
 
 /** Issuer Overview — リアルタイムのマーケティング状況。個別Investorの注文詳細はBookタブ（Canonical単位）。 */
@@ -31,6 +31,7 @@ export function IssuerOverviewTab({ deal, tranche, orders }: { deal: Deal; tranc
       <div className="space-y-3 min-w-0">
         <MarketingUpdateNotice tranche={tranche} />
         <BookClosedNotice deal={deal} tranche={tranche} />
+        <PricingConfirmedNotice tranche={tranche} />
         <OutsideOrderAlarm deal={deal} tranche={tranche} orders={orders} nameOf={(o) => displayInvestorNameForIssuer(o, orders).name} />
         <Panel title={`現在のマーケティングレンジ — ${tranche.tenorLabel}`} right={<span className="text-[10.5px] text-[var(--color-ink-3)]">参照 {tranche.referenceJgb.name} · 主幹事が設定</span>}>
           <div className="flex items-stretch gap-4">

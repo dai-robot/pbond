@@ -17,6 +17,7 @@ interface DealCatalog {
   createDeal: (adminLeadId: FirmId, input: CreateDealInput) => Deal;
   updateTerms: (dealId: string, input: UpdateTermsInput) => void;
   closeTranche: (trancheId: string) => void;
+  confirmPricing: (trancheId: string, input: { jgbSimplePct: number; spreadBp: number }) => boolean;
   reopenTranche: (trancheId: string) => void;
   addTranche: (dealId: string, input: { tenorLabel: string; amountOku: number; guidanceLowBp: number; guidanceHighBp: number }) => void;
   hydrated: boolean;
@@ -45,6 +46,9 @@ export function DealStateProvider({ children }: { children: ReactNode }) {
   const closeTranche = useCallback((trancheId: string) => {
     commit({ type: "closeTranche", trancheId });
   }, [commit]);
+  const confirmPricing = useCallback((trancheId: string, input: { jgbSimplePct: number; spreadBp: number }) => {
+    return commit({ type: "confirmPricing", trancheId, ...input }).ok;
+  }, [commit]);
   const reopenTranche = useCallback((trancheId: string) => {
     commit({ type: "reopenTranche", trancheId });
   }, [commit]);
@@ -52,8 +56,8 @@ export function DealStateProvider({ children }: { children: ReactNode }) {
     commit({ type: "addTranche", dealId, input });
   }, [commit]);
   const value = useMemo(
-    () => ({ deals, tranches, dealById, trancheById, tranchesOf, roomsOf, createDeal, updateTerms, closeTranche, reopenTranche, addTranche, hydrated: ready }),
-    [deals, tranches, dealById, trancheById, tranchesOf, roomsOf, createDeal, updateTerms, closeTranche, reopenTranche, addTranche, ready],
+    () => ({ deals, tranches, dealById, trancheById, tranchesOf, roomsOf, createDeal, updateTerms, closeTranche, confirmPricing, reopenTranche, addTranche, hydrated: ready }),
+    [deals, tranches, dealById, trancheById, tranchesOf, roomsOf, createDeal, updateTerms, closeTranche, confirmPricing, reopenTranche, addTranche, ready],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1,5 +1,5 @@
 import type { DealStatus, EntryTag, OrderStatus } from "@/lib/types";
-import { DEAL_STATUS_JA, ENTRY_TAG_JA, ORDER_STATUS_JA } from "@/lib/labels";
+import { displayDealStatus, displayDealStatusLabel, ENTRY_TAG_JA, ORDER_STATUS_JA } from "@/lib/labels";
 
 const DEAL_STYLES: Record<DealStatus, string> = {
   DRAFT: "bg-slate-100 text-slate-600 border-slate-200",
@@ -13,14 +13,15 @@ const DEAL_STYLES: Record<DealStatus, string> = {
   CLOSED: "bg-slate-200 text-slate-600 border-slate-300",
 };
 
-export function DealStatusBadge({ status, size = "sm" }: { status: DealStatus; size?: "sm" | "md" }) {
+export function DealStatusBadge({ status, bookClosed = false, size = "sm" }: { status: DealStatus; bookClosed?: boolean; size?: "sm" | "md" }) {
+  const shown = displayDealStatus(status, bookClosed);
   return (
     <span
       className={`inline-block border rounded-sm font-semibold tracking-wide whitespace-nowrap ${
         size === "md" ? "text-[11px] px-2 py-0.5" : "text-[10px] px-1.5 py-px"
-      } ${DEAL_STYLES[status]}`}
+      } ${DEAL_STYLES[shown]}`}
     >
-      {DEAL_STATUS_JA[status]}
+      {displayDealStatusLabel(status, bookClosed)}
     </span>
   );
 }

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { investorById } from "@/data/demoRoles";
-import { bookHasStarted, currentGuidance, fmtEventAt, nextEvent, summarizeBook } from "@/lib/deal";
+import { bookHasStarted, currentGuidance, filterGroup, fmtEventAt, nextEvent, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { DEMO_NOW, fmtBn, fmtBp, fmtDate, fmtRemaining, fmtTime, minutesUntil } from "@/lib/fmt";
 import { VISIBILITY_LABEL, allocKey, allocationFor, allocationPublished, dealPath, investorActionItems, investorAggregateView, investorVisibleDeals, myOrder, newOrderRule } from "@/lib/roles";
 import type { CanonicalOrder, Deal, Tranche } from "@/lib/types";
@@ -35,11 +35,12 @@ export function InvestorDashboard() {
   const infos = items.filter((i) => i.severity === "info");
 
   const hasMine = (d: Deal) => tranchesOf(d.id).some((t) => myOrder(orders, t.id, investorId));
-  const deals = visible.filter((d) => (filter === "ALL" ? d.status !== "CLOSED" : filter === "MINE" ? hasMine(d) && d.status !== "CLOSED" : d.status === "CLOSED"));
+  const finished = (d: Deal) => filterGroup(d) === "CLOSED";
+  const deals = visible.filter((d) => (filter === "ALL" ? !finished(d) : filter === "MINE" ? hasMine(d) && !finished(d) : finished(d)));
   const counts = {
-    ALL: visible.filter((d) => d.status !== "CLOSED").length,
-    MINE: visible.filter((d) => hasMine(d) && d.status !== "CLOSED").length,
-    CLOSED: visible.filter((d) => d.status === "CLOSED").length,
+    ALL: visible.filter((d) => !finished(d)).length,
+    MINE: visible.filter((d) => hasMine(d) && !finished(d)).length,
+    CLOSED: visible.filter((d) => finished(d)).length,
   };
 
   return (
@@ -71,7 +72,7 @@ export function InvestorDashboard() {
           <div className="panel-title">直近の締切 / 予定（デモ時刻 {fmtTime(DEMO_NOW, { always: true })} 起点）</div>
           <div className="mt-0.5 flex gap-4 overflow-hidden">
             {visible
-              .filter((d) => d.status !== "CLOSED")
+              .filter((d) => filterGroup(d) !== "CLOSED")
               .map((d) => ({ d, e: nextEvent(d, { includePendingGuidance: false }) }))
               .filter((x): x is { d: Deal; e: NonNullable<ReturnType<typeof nextEvent>> } => !!x.e)
               .sort((a, b) => (a.e.at < b.e.at ? -1 : 1))
@@ -166,7 +167,7 @@ export function InvestorDashboard() {
                       <span className="ml-1.5 font-normal text-[var(--color-ink-3)]">{t.rating}</span>
                     </td>
                     <td>
-                      <DealStatusBadge status={d.status} />
+                      <DealStatusBadge status={d.status} bookClosed={trancheBookClosed(d, t)} />
                     </td>
                     <td>
                       <GuidanceCell t={t} />
@@ -216,7 +217,7 @@ export function InvestorDashboard() {
       <section className="shrink-0 panel">
         <header className="px-3 py-1.5 border-b border-[var(--color-line-2)] flex items-center gap-2">
           <h2 className="panel-title">通知</h2>
-          <span className="ml-auto text-[10.5px] text-[var(--color-ink-3)]">レンジ変更 / クーポン公開 / タームシート公開 / トレード開始予定</span>
+          <span className="ml-auto text-[10.5px] text-[var(--color-ink-3)]">レンジ変更 / プライシング確定 / クーポン公開 / タームシート公開 / トレード開始予定</span>
         </header>
         <div className="px-3 py-2">
           <ActionRequiredList items={infos} />

@@ -11,7 +11,7 @@ import { Panel, Term } from "../Panel";
 import { Tag } from "../StatusBadge";
 import { DealTimelineList } from "../workspace/DealTimelineList";
 import { GuidanceBlock } from "../workspace/GuidanceBlock";
-import { BookClosedNotice, MarketingUpdateNotice, OutsideOrderAlarm } from "../workspace/DealNotices";
+import { BookClosedNotice, MarketingUpdateNotice, OutsideOrderAlarm, PricingConfirmedNotice } from "../workspace/DealNotices";
 import { GuidanceHistoryTable } from "../workspace/GuidanceHistoryTable";
 import { HistoricalIssuance } from "../workspace/widgets/HistoricalIssuance";
 import { IndicativeCoupon } from "../workspace/widgets/IndicativeCoupon";
@@ -43,6 +43,7 @@ export function InvestorOverviewTab({ deal, tranche, orders }: { deal: Deal; tra
       <div className="space-y-3 min-w-0">
         <MarketingUpdateNotice tranche={tranche} />
         <BookClosedNotice deal={deal} tranche={tranche} />
+        <PricingConfirmedNotice tranche={tranche} />
         <OutsideOrderAlarm deal={deal} tranche={tranche} orders={mine} nameOf={(o) => o.investorName} />
         <Panel title={`現在のマーケティングレンジ — ${tranche.tenorLabel}`} right={<span className="text-[10.5px] text-[var(--color-ink-3)]">参照 {tranche.referenceJgb.name}</span>}>
           <div className="flex items-stretch gap-4">
@@ -103,7 +104,7 @@ export function InvestorOverviewTab({ deal, tranche, orders }: { deal: Deal; tra
         </div>
         {widgets.comparator && (
           <Panel title="流通比較" tag={<Tag tone="demo">デモ</Tag>}>
-            <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} publicAt={deal.publicAt} includePending={false} />
+            <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} pricingDate={deal.pricingDate} publicAt={deal.publicAt} includePending={false} />
           </Panel>
         )}
         <div className="grid grid-cols-2 gap-3">

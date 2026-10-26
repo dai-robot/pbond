@@ -1,9 +1,9 @@
 import type { AllocationRow } from "../lib/allocation.ts";
 import { approveCoLead, approveIssuer, confirmInvestors, reopenDraft, saveDraft, showToCoLeads, showToIssuer } from "../lib/allocation.ts";
 import { firmOwnsEntry, salesPersonById } from "../lib/coverage.ts";
-import { identityModeOf, isAccountXInvestor, isAdminLead, isMember, nextIdentityMode, placedWithFirms } from "../lib/deal.ts";
+import { currentGuidance, identityModeOf, isAccountXInvestor, isAdminLead, isMember, nextIdentityMode, placedWithFirms, resolvedCanonical } from "../lib/deal.ts";
 import { setDemoNow } from "../lib/fmt.ts";
-import { chatRoomsForRole, investorCanSeeDeal, salesCanSeeDeal } from "../lib/roles.ts";
+import { chatRoomsForRole, countsAsMarketOrder, investorCanSeeDeal, salesCanSeeDeal } from "../lib/roles.ts";
 import { defaultChatRooms, deskPersonById } from "../lib/desk.ts";
 import {
   addFirmInvestor,
@@ -23,9 +23,9 @@ import {
 import { INVESTOR_SEGMENTS, type InvestorPersona, type InvestorSegment } from "../data/demoRoles.ts";
 import type { FirmId, RoomType } from "../lib/types.ts";
 import type { Actor } from "./actor.ts";
-import { applyAddTranche, applyCloseTranche, applyReopenTranche, applyTerms, buildDeal, ensureChatRooms, settleCatalog } from "./catalog.ts";
+import { applyAddTranche, applyCloseTranche, applyConfirmPricing, applyReopenTranche, applyTerms, buildDeal, ensureChatRooms, settleCatalog } from "./catalog.ts";
 import type { CreateDealInput, UpdateTermsInput } from "./catalog.ts";
-import { actorMayEnterFirm, addAccountX, cancelOrder, createFirmOrder, createInvestorOrder, firmBdError, investorPlacementError, mergeOrders, orderShapeError, updateInvestorOrder, type FirmOrderInput, type InvestorOrderInput, type OrderPatch } from "./orders.ts";
+import { actorMayEnterFirm, addAccountX, cancelOrder, createFirmOrder, createInvestorOrder, firmBdError, investorPlacementError, mergeOrders, orderShapeError, unchangedFirmOrder, updateInvestorOrder, type FirmOrderInput, type InvestorOrderInput, type OrderPatch } from "./orders.ts";
 import { settleWorld } from "./project.ts";
 import type { World } from "./world.ts";
 
@@ -34,6 +34,7 @@ export type Command =
   | { type: "createDeal"; input: CreateDealInput }
   | { type: "updateTerms"; dealId: string; input: UpdateTermsInput }
   | { type: "closeTranche"; trancheId: string }
+  | { type: "confirmPricing"; trancheId: string; jgbSimplePct: number; spreadBp: number }
   | { type: "reopenTranche"; trancheId: string }
   | { type: "addTranche"; dealId: string; input: { tenorLabel: string; amountOku: number; guidanceLowBp: number; guidanceHighBp: number } }
   | { type: "addAccountX" }
@@ -128,6 +129,13 @@ export function applyCommand(world: World, actor: Actor, command: Command): Appl
       if ("error" in next) return fail(next.error);
       return done({ ...base, ...next });
     }
+    case "confirmPricing": {
+      const found = adminPair(base, actor, command.trancheId);
+      if (!found) return fail("プライシングを確定できるのは事務主幹事です");
+      const next = applyConfirmPricing(base.tranches, command.trancheId, { jgbSimplePct: command.jgbSimplePct, spreadBp: command.spreadBp }, base.now);
+      if ("error" in next) return fail(next.error);
+      return done({ ...base, tranches: next });
+    }
     case "closeTranche": {
       const found = adminPair(base, actor, command.trancheId);
       if (!found) return fail("ファイナルクローズできるのは事務主幹事です");
@@ -204,6 +212,7 @@ export function applyCommand(world: World, actor: Actor, command: Command): Appl
       const placement = firmBdError(found.deal, command.input.bdFirmId, isAccountXInvestor(command.input.investorId ?? ""), actor.firmId);
       if (placement) return fail(placement);
       const input = { ...command.input, salesPersonId: actor.role === "SALES" ? actor.personId : command.input.salesPersonId };
+      if (unchangedFirmOrder(base.orders, base.investors, command.trancheId, actor.firmId, input)) return fail("同じ内容のオーダーがすでに入っています");
       const next = createFirmOrder(base.orders, base.investors, found.tranche, found.deal, actor.firmId, input);
       if (!next) return fail("オーダーを登録できません");
       return done({ ...base, orders: next.book, investors: { ...base.investors, aliases: next.aliases } });
@@ -238,7 +247,16 @@ export function applyCommand(world: World, actor: Actor, command: Command): Appl
       const issue = found.tranche.amountBn;
       if (command.type === "saveAllocation") {
         if (typeof issue !== "number") return fail("発行額が未設定です");
-        return putAllocation(base, command.trancheId, saveDraft(current, command.trancheId, command.rows, issue, base.now));
+        const guidance = currentGuidance(found.tranche);
+        const locked = new Set((current?.rows ?? []).filter((r) => r.confirmedAt).map((r) => r.globalInvestorId));
+        const orders = base.orders.orders.filter((o) => o.trancheId === command.trancheId && o.status !== "CANCELLED");
+        const rows = command.rows.map((r) => {
+          if (locked.has(r.globalInvestorId)) return r;
+          const order = orders.find((o) => o.globalInvestorId === r.globalInvestorId);
+          return { ...r, marketOrder: !!order && countsAsMarketOrder(resolvedCanonical(order, found.deal), guidance) };
+        });
+        if (rows.some((r) => !locked.has(r.globalInvestorId) && r.marketOrder === false)) return fail("マーケットオーダーではないため配分できません");
+        return putAllocation(base, command.trancheId, saveDraft(current, command.trancheId, rows, issue, base.now));
       }
       if (command.type === "showCoLeads") {
         if (typeof issue !== "number") return fail("発行額が未設定です");
@@ -398,9 +416,9 @@ export function applyCommand(world: World, actor: Actor, command: Command): Appl
       return found ? done({ ...base, rooms }) : fail("メッセージを削除できません");
     }
     case "markRead": {
-      const mine = new Set(base.reads[actor.id] ?? []);
-      mine.add(command.roomId);
-      return done({ ...base, reads: { ...base.reads, [actor.id]: [...mine] } });
+      const mine = base.reads[actor.id] ?? [];
+      if (mine.includes(command.roomId)) return { ok: true, world };
+      return done({ ...base, reads: { ...base.reads, [actor.id]: [...mine, command.roomId] } });
     }
     case "importLegacy": {
       if (actor.role !== "SYNDICATION") return fail("以前のブラウザ保存を取り込めるのはシンジケートです");

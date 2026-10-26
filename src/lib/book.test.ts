@@ -162,6 +162,12 @@ describe("相違時の正", () => {
     assert.equal(trail[1].prev?.amountBn, undefined);
     assert.equal(firmVisibleTrail(o, "beta").some((x) => x.sub.receivedByFirm === "alpha" && x.sub.channel !== "INVESTOR_DIRECT"), false);
   });
+  it("drops a second firm entry that did not change the order", () => {
+    const first = sub("alpha", 1, "2026-09-23 19:00");
+    const again = { ...first, id: "alpha-again", receivedAt: "2026-09-23 19:05", enteredAt: "2026-09-23 19:05" };
+    const o = order({ id: "o6", submissions: [again], entryLog: [first, again] });
+    assert.deepEqual(firmVisibleTrail(o, "alpha").map((x) => x.sub.id), [first.id]);
+  });
 });
 
 describe("スプレッド別オーダー", () => {

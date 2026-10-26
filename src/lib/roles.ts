@@ -64,6 +64,12 @@ export function isOutsideGuidance(o: Pick<CanonicalOrder, "type" | "limitBp">, g
   if (!g || o.type !== "LIMIT" || o.limitBp === undefined) return false;
   return o.limitBp < g.lowBp || o.limitBp > g.highBp;
 }
+
+/** 配分できるオーダー。種別がマーケットか、指値がいまのレンジのタイトサイドと同じもの */
+export function countsAsMarketOrder(o: Pick<CanonicalOrder, "type" | "limitBp">, g: Guidance | undefined) {
+  if (o.type === "MARKET") return true;
+  return o.type === "LIMIT" && !!g && o.limitBp === g.lowBp;
+}
 export function deriveOrderStatus(o: Pick<CanonicalOrder, "type" | "limitBp" | "status">, g: Guidance | undefined): OrderStatus {
   if (o.status === "CANCELLED") return "CANCELLED";
   return isOutsideGuidance(o, g) ? "OUTSIDE GUIDANCE" : "ACTIVE";
@@ -188,7 +194,7 @@ export { allocKey };
 // ---------------------------------------------------------------------
 // Investor Action Required / Notifications
 // ---------------------------------------------------------------------
-export type ActionKind = "OUTSIDE_GUIDANCE" | "ALLOCATION_ACK" | "TRADE_ACCEPT" | "TRADE_OPEN_SOON" | "GUIDANCE_PUBLISHED" | "GUIDANCE_SCHEDULED" | "COUPON_PUBLISHED" | "TERM_SHEET_PUBLISHED";
+export type ActionKind = "OUTSIDE_GUIDANCE" | "ALLOCATION_ACK" | "TRADE_ACCEPT" | "TRADE_OPEN_SOON" | "GUIDANCE_PUBLISHED" | "GUIDANCE_SCHEDULED" | "COUPON_PUBLISHED" | "TERM_SHEET_PUBLISHED" | "PRICING_CONFIRMED";
 
 export interface ActionItem {
   id: string;
@@ -315,6 +321,21 @@ export function investorActionItems(
         }
       }
       // 次回レンジは、指定時刻になるまで投資家へ出さない。
+
+      if (t.pricingConfirmed) {
+        const confirmed = t.pricingConfirmed;
+        items.push({
+          id: `pricing-${t.id}`,
+          dealId: d.id,
+          trancheId: t.id,
+          kind: "PRICING_CONFIRMED",
+          severity: "info",
+          title: `${d.issuerShort} ${t.tenorLabel} — プライシングが確定しました`,
+          lines: [`クーポン ${confirmed.couponPct.toFixed(3)}%`, `単価 ${confirmed.priceYen}円`, `債券単利 ${confirmed.bondSimplePct.toFixed(3)}%`],
+          at: confirmed.at,
+          cta: { label: "プライシング", tab: "pricing" },
+        });
+      }
 
       // 5. Coupon / タームシート 公開通知（自分にOrder / Allocationがある場合）
       if (mine && couponPublished(t) && d.status !== "CLOSED") {

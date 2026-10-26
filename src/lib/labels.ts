@@ -1,5 +1,18 @@
 import type { DealStatus, EntryTag, OrderStatus } from "./types.ts";
 
+const OPEN_BOOK: DealStatus[] = ["BOOK OPEN", "MARKETING"];
+
+/** ブックを閉じていても台帳のステータスがブック中のとき、一覧ではブッククローズと出す。 */
+export function displayDealStatus(status: DealStatus, bookClosed = false): DealStatus {
+  if (bookClosed && OPEN_BOOK.includes(status)) return "BOOK CLOSED";
+  return status;
+}
+
+export function displayDealStatusLabel(status: DealStatus, bookClosed = false) {
+  if (bookClosed && OPEN_BOOK.includes(status)) return "ブッククローズ";
+  return DEAL_STATUS_JA[status];
+}
+
 export const DEAL_STATUS_JA: Record<DealStatus, string> = {
   DRAFT: "下書き",
   "PRE-MARKETING": "プレマーケティング",

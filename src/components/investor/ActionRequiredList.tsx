@@ -12,6 +12,7 @@ const KIND_LABEL: Record<ActionItem["kind"], string> = {
   GUIDANCE_PUBLISHED: "レンジ更新",
   GUIDANCE_SCHEDULED: "レンジ予定",
   COUPON_PUBLISHED: "クーポン公開済",
+  PRICING_CONFIRMED: "プライシング確定",
   TERM_SHEET_PUBLISHED: "タームシート",
 };
 

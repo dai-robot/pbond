@@ -126,7 +126,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const current = actorRef.current;
     if (!current) return { ok: false, error: "ログインしてください" };
     const applied = applyCommand(worldRef.current, current, command);
-    if (!applied.ok) return applied;
+    if (!applied.ok || applied.world === worldRef.current) return applied;
     worldRef.current = applied.world;
     setDemoNow(applied.world.now);
     setWorld(applied.world);

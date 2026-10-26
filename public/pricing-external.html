@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>プライシング確定 — 外部HTMLの試験</title>
+  <style>
+    body { margin: 24px; font-family: "Segoe UI", sans-serif; color: #1c1917; background: #fafaf9; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    p { font-size: 13px; line-height: 1.5; }
+    table { border-collapse: collapse; width: 100%; max-width: 720px; background: #fff; }
+    th, td { border: 1px solid #e7e5e4; padding: 8px 10px; text-align: right; font-size: 14px; }
+    th:first-child, td:first-child { text-align: left; }
+    tbody tr { background: #fef08a; }
+    .muted { color: #78716c; }
+    a { color: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <h1>プライシング確定</h1>
+  <p class="muted" id="status">読み込み中です。</p>
+  <table>
+    <thead>
+      <tr>
+        <th>案件</th>
+        <th>クーポン</th>
+        <th>単価</th>
+        <th>債券単利</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <script>
+    const status = document.getElementById("status");
+    const body = document.getElementById("rows");
+    function cell(text) {
+      const td = document.createElement("td");
+      td.textContent = text;
+      return td;
+    }
+    async function load() {
+      const response = await fetch("/api/pricing", { credentials: "same-origin" });
+      if (response.status === 401) {
+        status.textContent = "ログインしてください。";
+        const link = document.createElement("a");
+        link.href = "/login";
+        link.textContent = "ログイン画面を開く";
+        status.append(" ");
+        status.append(link);
+        body.replaceChildren();
+        return;
+      }
+      const data = await response.json();
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      status.textContent = rows.length
+        ? data.actor.label + " に見える確定です。"
+        : "確定したプライシングはまだありません。";
+      body.replaceChildren(...rows.map((row) => {
+        const tr = document.createElement("tr");
+        tr.append(
+          cell(row.issuerShort + " " + row.tenorLabel),
+          cell(Number(row.couponPct).toFixed(3) + "%"),
+          cell(row.priceYen + "円"),
+          cell(Number(row.bondSimplePct).toFixed(3) + "%"),
+        );
+        return tr;
+      }));
+    }
+    load();
+    setInterval(load, 4000);
+  </script>
+</body>
+</html>

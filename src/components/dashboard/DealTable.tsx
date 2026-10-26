@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { bookHasStarted, currentGuidance, firmShort, fmtEventAt, isAdminLead, marketingTitle, nextEvent, pendingGuidance, summarizeBook } from "@/lib/deal";
+import { bookHasStarted, currentGuidance, firmShort, fmtEventAt, isAdminLead, marketingTitle, nextEvent, pendingGuidance, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { chatRoomsForRole } from "@/lib/roles";
 import { fmtBn, fmtCoverage, fmtDate, fmtRemaining, fmtTime, minutesUntil } from "@/lib/fmt";
 import type { Deal, FirmId } from "@/lib/types";
@@ -87,7 +87,7 @@ export function DealTable({ deals, viewer }: { deals: Deal[]; viewer: FirmId }) 
                     <span className="ml-1.5 font-normal text-[var(--color-ink-3)]">{t.rating}</span>
                   </td>
                   <td>
-                    <DealStatusBadge status={d.status} />
+                    <DealStatusBadge status={d.status} bookClosed={trancheBookClosed(d, t)} />
                   </td>
                   <td>
                     {g ? (

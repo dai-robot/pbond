@@ -9,6 +9,7 @@ const COMMAND_JA: Record<string, string> = {
   createDeal: "案件作成",
   updateTerms: "条件更新",
   closeTranche: "ファイナルクローズ",
+  confirmPricing: "プライシング確定",
   reopenTranche: "クローズ解除",
   addTranche: "年限追加",
   addAccountX: "アカウントX",

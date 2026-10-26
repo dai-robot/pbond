@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ISSUER_PERSONAS } from "@/data/demoRoles";
-import { bookHasStarted, currentGuidance, firmShort, fmtEventAt, nextEvent, summarizeBook } from "@/lib/deal";
+import { bookHasStarted, currentGuidance, filterGroup, firmShort, fmtEventAt, nextEvent, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { DEMO_NOW, fmtBn, fmtCoverage, fmtDate, fmtDateFull, fmtPct, fmtRemaining, fmtTime, minutesUntil } from "@/lib/fmt";
 import { ISSUER_ROOM_TYPES, dealPath, issuerDeals } from "@/lib/roles";
 import type { Deal } from "@/lib/types";
@@ -30,8 +30,8 @@ export function IssuerDashboard() {
   const [mode, setMode] = useState<Mode>("CURRENT");
 
   const deals = useMemo(() => issuerDeals(issuer, allDeals), [issuer, allDeals]);
-  const current = deals.filter((d) => d.status !== "CLOSED");
-  const past = deals.filter((d) => d.status === "CLOSED");
+  const current = deals.filter((d) => filterGroup(d) !== "CLOSED");
+  const past = deals.filter((d) => filterGroup(d) === "CLOSED");
   const historical = useMemo(() => issuerHistoricalRows(deals, tranchesOf), [deals, tranchesOf]);
   const totalUnread = current.reduce((s, d) => s + dealCounts(d.id, ISSUER_ROOM_TYPES).unread, 0);
   const upcoming = current
@@ -134,7 +134,7 @@ export function IssuerDashboard() {
                         <span className="ml-1.5 font-normal text-[var(--color-ink-3)]">{t.rating}</span>
                       </td>
                       <td>
-                        <DealStatusBadge status={d.status} />
+                        <DealStatusBadge status={d.status} bookClosed={trancheBookClosed(d, t)} />
                       </td>
                       <td>
                         {g ? (

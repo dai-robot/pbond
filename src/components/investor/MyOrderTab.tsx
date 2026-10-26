@@ -278,7 +278,7 @@ function FormFields({ f, deal, disabled }: { f: ReturnType<typeof useOrderForm>;
             </button>
           ))}
             </div>
-        <div className="mt-0.5 text-[10.5px] text-[var(--color-ink-3)]">レンジのタイトサイドがマーケットオーダーです。リミットのままでは配分できません。</div>
+        <div className="mt-0.5 text-[10.5px] text-[var(--color-ink-3)]">レンジのタイトサイドがマーケットオーダーです。同じ指値も配分できます。それより広いリミットは配分できません。</div>
       </div>
       {f.type === "LIMIT" && (
         <label className="block">

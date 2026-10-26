@@ -18,7 +18,7 @@ export function GuidanceBlock({ current, next, compact }: { current?: Guidance; 
           <div className="text-[10.5px] text-[var(--color-ink-3)] mt-1 leading-tight">
             適用開始 <span className="font-mono text-[var(--color-ink-2)]">{fmtTime(current.effectiveAt, { always: true })}</span>
             <div>{marketingTitle(current.day)}{current.amountBn !== undefined ? ` · 発行額 ${fmtBn(current.amountBn)}` : ""} · 登録 {fmtTime(current.enteredAt, { always: true })}</div>
-            <div data-testid="guidance-tight">タイトサイド +{current.lowBp}bp がマーケットオーダー</div>
+            <div data-testid="guidance-tight">タイトサイド +{current.lowBp}bp がマーケットオーダー。同じ指値も同じ扱いです</div>
           </div>
         ) : (
           <div className="text-[10.5px] text-[var(--color-ink-3)] mt-1">レンジ未登録</div>

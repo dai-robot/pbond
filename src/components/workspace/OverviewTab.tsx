@@ -14,7 +14,7 @@ import { useViewer } from "../ViewerContext";
 import { DealTimelineList } from "./DealTimelineList";
 import { GuidanceBlock } from "./GuidanceBlock";
 import { GuidanceHistoryTable } from "./GuidanceHistoryTable";
-import { BookClosedNotice, OutsideOrderAlarm, MarketingUpdateNotice } from "./DealNotices";
+import { BookClosedNotice, OutsideOrderAlarm, MarketingUpdateNotice, PricingConfirmedNotice } from "./DealNotices";
 import { SpreadDemand } from "./SpreadDemand";
 import { HistoricalIssuance } from "./widgets/HistoricalIssuance";
 import { IndicativeCoupon } from "./widgets/IndicativeCoupon";
@@ -54,6 +54,7 @@ export function OverviewTab({ deal, tranche }: { deal: Deal; tranche: Tranche })
       <div className="space-y-3 min-w-0">
         <MarketingUpdateNotice tranche={tranche} />
         <BookClosedNotice deal={deal} tranche={tranche} />
+        <PricingConfirmedNotice tranche={tranche} />
         <OutsideOrderAlarm deal={deal} tranche={tranche} orders={allOrders} nameOf={(o) => {
           const dn = displayInvestorName(o, firmId, allOrders, deal);
           return dn.masked ? dn.name : labelFor(o.globalInvestorId, firmId);
@@ -144,7 +145,7 @@ export function OverviewTab({ deal, tranche }: { deal: Deal; tranche: Tranche })
 
         {widgets.comparator && (
           <Panel title="流通比較" tag={<Tag tone="demo">デモ</Tag>} testId="widget-panel-comparator">
-            <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} publicAt={deal.publicAt} includePending />
+            <SecondaryComparator tranche={tranche} guidance={g} cutoffAt={deal.orderCutoffAt} pricingDate={deal.pricingDate} publicAt={deal.publicAt} includePending />
           </Panel>
         )}
         <div className="grid grid-cols-2 gap-3">

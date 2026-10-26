@@ -16,24 +16,24 @@ export interface InvestorPersona {
   segment: InvestorSegment;
 }
 export const INVESTOR_PERSONAS: InvestorPersona[] = [
-  { id: "GI-0001", name: "投資家アルファ", contact: "運用部 A", segment: "生保" },
-  { id: "GI-0002", name: "投資家ブラボー", contact: "債券運用 B", segment: "損保" },
-  { id: "GI-0007", name: "投資家チャーリー", contact: "クレジット投資 C", segment: "中央公的" },
-  { id: "GI-0034", name: "投資家ジュリエット", contact: "資金運用 J", segment: "系統上部" },
+  { id: "GI-0001", name: "アルファ生命", contact: "運用部 A", segment: "生保" },
+  { id: "GI-0002", name: "ブラボー損保", contact: "債券運用 B", segment: "損保" },
+  { id: "GI-0007", name: "チャーリー年金", contact: "クレジット投資 C", segment: "中央公的" },
+  { id: "GI-0034", name: "ジュリエット農林中央", contact: "資金運用 J", segment: "系統上部" },
 ];
 export const investorById = (id: string) => INVESTOR_PERSONAS.find((p) => p.id === id);
 
 /** Sales / シンジケート入力用の Global Investor Master（架空・DEMO） */
 export const INVESTOR_MASTER: InvestorPersona[] = [
   ...INVESTOR_PERSONAS,
-  { id: "GI-0011", name: "投資家エコー", contact: "運用 E", segment: "地銀" },
-  { id: "GI-0015", name: "投資家フォックストロット", contact: "運用 F", segment: "系統下部" },
-  { id: "GI-0021", name: "投資家ゴルフ", contact: "運用 G", segment: "地方公的" },
-  { id: "GI-0023", name: "投資家ホテル", contact: "運用 H", segment: "その他諸法人" },
-  { id: "GI-0030", name: "投資家インディア", contact: "運用 I", segment: "証券会社自己" },
-  { id: "GI-0038", name: "投資家キロ", contact: "運用 K", segment: "生保" },
-  { id: "GI-0041", name: "投資家マイク", contact: "運用 M", segment: "地銀" },
-  { id: "GI-0044", name: "投資家ノーベンバー", contact: "運用 N", segment: "損保" },
+  { id: "GI-0011", name: "エコー銀行", contact: "運用 E", segment: "地銀" },
+  { id: "GI-0015", name: "フォックストロット信金", contact: "運用 F", segment: "系統下部" },
+  { id: "GI-0021", name: "ゴルフ県", contact: "運用 G", segment: "地方公的" },
+  { id: "GI-0023", name: "ホテル商事", contact: "運用 H", segment: "その他諸法人" },
+  { id: "GI-0030", name: "インディア証券自己", contact: "自己売買 I", segment: "証券会社自己" },
+  { id: "GI-0038", name: "キロ生命", contact: "運用 K", segment: "生保" },
+  { id: "GI-0041", name: "マイク銀行", contact: "運用 M", segment: "地銀" },
+  { id: "GI-0044", name: "ノーベンバー損保", contact: "運用 N", segment: "損保" },
 ];
 export const investorMasterById = (id: string) => INVESTOR_MASTER.find((p) => p.id === id);
 
@@ -63,6 +63,10 @@ export const CREATABLE_ISSUERS: IssuerPersona[] = [
   { issuer: "アサヒ物流リート", short: "アサヒ物流", contact: "財務部" },
   { issuer: "ユズ・エナジー・パートナーズ", short: "ユズエナジー", contact: "財務部" },
 ];
+
+/** ログインとロール切替に出す発行体。案件作成の候補も、最初から登録された発行体も、同じ一覧にする。 */
+export const ALL_ISSUERS: IssuerPersona[] = [...ISSUER_PERSONAS, ...CREATABLE_ISSUERS];
+export const issuerByName = (name: string) => ALL_ISSUERS.find((p) => p.issuer === name);
 
 /** Syndication Roleで選択できる証券会社（既存FIRMSと同じID） */
 export const SYNDICATION_FIRM_IDS: FirmId[] = ["alpha", "beta", "gamma", "delta", "epsilon"];

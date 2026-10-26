@@ -9,7 +9,7 @@ export interface AllocationRow {
   allocationBn: number;
   /** 事務主幹事が確定した時刻。この行が投資家・共同主幹事・発行体に見える */
   confirmedAt?: DemoTime;
-  /** false の行はリミットのため配分できない。未設定の古い行はそのまま扱う */
+  /** false の行は、マーケットオーダーでもタイトサイドの指値でもないため配分できない。未設定の古い行はそのまま扱う */
   marketOrder?: boolean;
 }
 

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { DEAL_STATUS_JA } from "@/lib/labels";
+import { displayDealStatusLabel } from "@/lib/labels";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { investorById } from "@/data/demoRoles";
-import { bookHasStarted, currentGuidance, firmShort, fmtEventAt, nextEvent, summarizeBook } from "@/lib/deal";
+import { allTranchesBookClosed, bookHasStarted, currentGuidance, firmShort, fmtEventAt, nextEvent, summarizeBook, trancheBookClosed } from "@/lib/deal";
 import { fmtBn, fmtBp, fmtDate, fmtRemaining, fmtTime, minutesUntil } from "@/lib/fmt";
 import { VISIBILITY_LABEL, dealPath, investorActionItems, investorAggregateView, investorCanSeeDeal, investorVisibleDeals, liveOrderStatus, myOrder, tradeOpen } from "@/lib/roles";
 import { useAllocation } from "../AllocationStateContext";
@@ -107,7 +107,7 @@ export function InvestorWorkspace({ dealId, initialTrancheId, initialTab }: { de
             <select value={deal.id} onChange={(e) => router.push(dealPath("INVESTOR", e.target.value))} className="border border-[var(--color-line)] rounded-sm px-1.5 py-0.5 text-[11.5px] bg-white max-w-[260px]" aria-label="案件切替">
               {visibleDeals.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.issuer} — {DEAL_STATUS_JA[d.status]}
+                  {d.issuer} — {displayDealStatusLabel(d.status, allTranchesBookClosed(d, tranchesOf(d.id)))}
                 </option>
               ))}
             </select>
@@ -130,7 +130,7 @@ export function InvestorWorkspace({ dealId, initialTrancheId, initialTab }: { de
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[17px] font-semibold leading-tight tracking-tight">{deal.issuer}</h1>
-                <DealStatusBadge status={deal.status} size="md" />
+                <DealStatusBadge status={deal.status} bookClosed={trancheBookClosed(deal, tranche)} size="md" />
               </div>
               <div className="mt-1 flex items-center gap-x-4 gap-y-0.5 flex-wrap text-[11.5px] text-[var(--color-ink-2)]">
                 <span>
